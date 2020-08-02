@@ -1,0 +1,52 @@
+root = true
+
+[*.java]
+indent_size = 2
+tab_width = 2
+ij_continuation_indent_size = 2
+indent_style = space
+
+[*.groovy]
+indent_size = 2
+tab_width = 2
+ij_continuation_indent_size = 2
+indent_style = space
+
+[*.scala]
+indent_size = 2
+tab_width = 2
+ij_continuation_indent_size = 2
+indent_style = space
+insert_final_newline = false
+ij_scala_keep_simple_blocks_in_one_line = true
+ij_scala_keep_simple_methods_in_one_line = true
+ij_scala_align_multiline_parameters = false
+ij_scala_blank_lines_after_class_header = 0
+ij_scala_blank_lines_after_anonymous_class_header = 0
+ij_scala_blank_lines_around_class = 0
+ij_scala_blank_lines_around_field = 0
+ij_scala_blank_lines_around_method = 0
+ij_scala_blank_lines_around_field_in_inner_scopes = 0
+ij_scala_blank_lines_around_field_in_interface = 0
+ij_scala_blank_lines_around_method_in_inner_scopes = 0
+ij_scala_blank_lines_around_method_in_interface = 0
+
+[*.json]
+indent_size = 2
+tab_width = 2
+ij_continuation_indent_size = 2
+ij_json_keep_blank_lines_in_code = 0
+ij_json_keep_indents_on_empty_lines = false
+ij_json_keep_line_breaks = true
+ij_json_space_after_colon = true
+ij_json_space_after_comma = true
+ij_json_space_before_colon = true
+ij_json_space_before_comma = false
+ij_json_spaces_within_braces = true
+ij_json_spaces_within_brackets = true
+ij_json_wrap_long_lines = false
+
+[*.{kt, kts}]
+indent_size = 2
+ij_continuation_indent_size = 2
+indent_style = space
