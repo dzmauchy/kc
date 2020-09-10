@@ -1,5 +1,6 @@
 plugins {
   java
+  application
 }
 
 group = "org.ku"
@@ -43,23 +44,11 @@ tasks.withType<Test> {
   }
 }
 
-configurations.all {
-  resolutionStrategy.eachDependency {
-    when {
-      requested.group == "org.jboss.xnio" -> useVersion("3.8.1.Final")
-      requested.group == "org.jboss.threads" && requested.name == "jboss-threads" -> useVersion("3.1.1.Final")
-      requested.group == "com.fasterxml.jackson.core" -> useVersion("2.10.5")
-    }
-  }
-}
-
 dependencies {
   implementation(group = "org.apache.kafka", name = "kafka-clients", version = "$confluentVersion-ccs")
-  implementation(group = "io.confluent", name = "kafka-schema-registry-client", version = confluentVersion)
-  implementation(group = "org.codehaus.groovy", name = "groovy", version = "3.0.5", classifier = "indy")
-  implementation(group = "io.undertow", name = "undertow-core", version = "2.1.3.Final")
-  implementation(group = "org.slf4j", name = "slf4j-jdk14", version = "1.7.30")
+  implementation(group = "org.codehaus.groovy", name = "groovy-json", version = "3.0.5", classifier = "indy")
   implementation(group = "org.jboss.logmanager", name = "jboss-logmanager", version = "2.1.17.Final")
+  implementation(group = "org.slf4j", name = "slf4j-jdk14", version = "1.7.30")
 
   testImplementation(platform("org.junit:junit-bom:5.6.2"))
   testImplementation(group = "org.junit.jupiter", name = "junit-jupiter-engine")
