@@ -1,10 +1,13 @@
-package org.dzmauchy.kc;
+package org.dzmauchy.kc.commands;
 
-import groovyjarjarpicocli.CommandLine;
+import groovyjarjarpicocli.CommandLine.Command;
 
 import java.util.concurrent.Callable;
 
-@CommandLine.Command()
+@Command(
+  name = "offsets",
+  aliases = {"o"}
+)
 public class OffsetsCommand implements Callable<Integer> {
   @Override
   public Integer call() throws Exception {
