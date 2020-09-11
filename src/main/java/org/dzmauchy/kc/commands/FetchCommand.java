@@ -2,6 +2,8 @@ package org.dzmauchy.kc.commands;
 
 import groovyjarjarpicocli.CommandLine;
 import groovyjarjarpicocli.CommandLine.Command;
+import groovyjarjarpicocli.CommandLine.Option;
+import groovyjarjarpicocli.CommandLine.Parameters;
 import org.dzmauchy.kc.converters.InstantConverter;
 
 import java.time.Instant;
@@ -16,7 +18,7 @@ import java.util.concurrent.Callable;
 )
 public class FetchCommand extends AbstractKafkaCommand implements Callable<Integer> {
 
-  @CommandLine.Option(
+  @Option(
     names = {"-F", "--from"},
     description = "Date to fetch since",
     converter = InstantConverter.class,
@@ -24,7 +26,7 @@ public class FetchCommand extends AbstractKafkaCommand implements Callable<Integ
   )
   public Instant from;
 
-  @CommandLine.Option(
+  @Option(
     names = {"-T", "--to"},
     description = "Date to fetch until",
     converter = InstantConverter.class,
@@ -32,14 +34,14 @@ public class FetchCommand extends AbstractKafkaCommand implements Callable<Integ
   )
   public Instant to;
 
-  @CommandLine.Option(
+  @Option(
     names = {"-f", "--filter"},
     description = "Groovy expression to filter incoming messages",
     defaultValue = "true"
   )
   public String filter;
 
-  @CommandLine.Parameters(
+  @Parameters(
     description = "Input topics"
   )
   public List<String> topics;
