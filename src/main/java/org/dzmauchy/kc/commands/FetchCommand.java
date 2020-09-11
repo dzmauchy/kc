@@ -1,6 +1,5 @@
 package org.dzmauchy.kc.commands;
 
-import groovyjarjarpicocli.CommandLine;
 import groovyjarjarpicocli.CommandLine.Command;
 import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;

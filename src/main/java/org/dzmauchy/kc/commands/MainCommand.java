@@ -6,8 +6,6 @@ import java.util.concurrent.Callable;
 
 @Command(
   description = "Kafka CLI",
-  showDefaultValues = true,
-  showEndOfOptionsDelimiterInUsageHelp = true,
   mixinStandardHelpOptions = true
 )
 public class MainCommand implements Callable<Integer> {
