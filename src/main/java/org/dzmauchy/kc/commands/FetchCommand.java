@@ -15,7 +15,7 @@ import java.util.concurrent.Callable;
   description = "Fetch command",
   mixinStandardHelpOptions = true
 )
-public class FetchCommand extends AbstractKafkaCommand implements Callable<Integer> {
+public class FetchCommand extends AbstractKafkaDataCommand implements Callable<Integer> {
 
   @Option(
     names = {"-F", "--from"},
