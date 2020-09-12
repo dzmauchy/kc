@@ -4,6 +4,8 @@ import groovyjarjarpicocli.CommandLine.Command;
 import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;
 import org.dzmauchy.kc.converters.InstantConverter;
+import org.dzmauchy.kc.converters.PropertiesConverter;
+import org.dzmauchy.kc.kafka.KafkaProperties;
 
 import java.time.Instant;
 import java.util.List;
@@ -40,6 +42,14 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
   )
   public String filter;
 
+  @Option(
+    names = {"--consumer-properties"},
+    description = "Consumer properties",
+    converter = PropertiesConverter.class,
+    defaultValue = ""
+  )
+  public KafkaProperties consumerProperties;
+
   @Parameters(
     description = "Input topics"
   )
@@ -47,6 +57,7 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
 
   @Override
   public Integer call() throws Exception {
-    return null;
+    System.out.println(2);
+    return 0;
   }
 }

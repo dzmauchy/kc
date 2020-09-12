@@ -6,7 +6,9 @@ import java.util.concurrent.Callable;
 
 @Command(
   name = "offsets",
-  aliases = {"o"}
+  aliases = {"o"},
+  description = "Offset-related command",
+  mixinStandardHelpOptions = true
 )
 public class OffsetsCommand implements Callable<Integer> {
   @Override
