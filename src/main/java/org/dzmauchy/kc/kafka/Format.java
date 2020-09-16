@@ -1,6 +1,7 @@
 package org.dzmauchy.kc.kafka;
 
 public enum Format {
+  BYTES,
   STRING,
   JSON,
   LONG,
