@@ -71,9 +71,9 @@ public enum Format {
         var schema = (Schema) properties.get(DecoderKey.SCHEMA);
         if (schema == null) {
           int schemaId = ByteBuffer.wrap(data, 1, 4).getInt();
-          var uri = (URI) properties.get(DecoderKey.SCHEMA_REGISTRY);
           schema = schemas.computeIfAbsent(schemaId, id -> {
             try {
+              var uri = (URI) properties.get(DecoderKey.SCHEMA_REGISTRY);
               var url = uri.resolve("schemas/ids/" + schemaId).toURL();
               try (var is = url.openStream()) {
                 var json = (Map<?, ?>) new JsonSlurper().parse(is, "UTF-8");
