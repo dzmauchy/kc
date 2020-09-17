@@ -30,9 +30,9 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
   @Override
   public Integer call() throws Exception {
     try (var client = AdminClient.create(clientProps())) {
-      var topics = client.listTopics().names().get().stream()
-        .sorted()
+      var topics = client.listTopics().names().get().parallelStream()
         .filter(s -> s.matches(pattern))
+        .sorted()
         .collect(Collectors.toUnmodifiableList());
       var descriptions = client.describeTopics(topics).all().get();
       var table = new ShellTable();
