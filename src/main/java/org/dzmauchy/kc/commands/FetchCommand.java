@@ -5,6 +5,7 @@ import groovy.lang.GroovyShell;
 import groovyjarjarpicocli.CommandLine.Command;
 import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;
+import org.apache.avro.Schema;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
@@ -14,13 +15,16 @@ import org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper;
 import org.dzmauchy.kc.converters.InstantConverter;
 import org.dzmauchy.kc.converters.PropertiesConverter;
 import org.dzmauchy.kc.groovy.GroovyShellProvider;
+import org.dzmauchy.kc.kafka.DecoderKey;
 import org.dzmauchy.kc.kafka.Format;
 import org.dzmauchy.kc.kafka.KafkaProperties;
 
+import java.io.PrintStream;
 import java.rmi.server.UID;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
@@ -31,7 +35,8 @@ import java.util.stream.Collectors;
   name = "fetch",
   aliases = {"f"},
   description = "Fetch command",
-  mixinStandardHelpOptions = true
+  mixinStandardHelpOptions = true,
+  showDefaultValues = true
 )
 public class FetchCommand extends AbstractKafkaDataCommand implements Callable<Integer> {
 
@@ -83,28 +88,37 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
   @Option(
     names = {"-k", "--key-format"},
     description = "Key format",
-    defaultValue = "BYTES"
+    defaultValue = "${env:KC_KEY_FORMAT:-BYTES}"
   )
   public Format keyFormat;
 
   @Option(
     names = {"-v", "--value-format"},
     description = "Value format",
-    defaultValue = "BYTES"
+    defaultValue = "${env:KC_VALUE_FORMAT:-BYTES}"
   )
   public Format valueFormat;
 
   @Option(
-    names = {"-key-schema"},
+    names = {"--key-schema"},
     description = "Key schema",
-    defaultValue = "Value schema"
+    defaultValue = "${env:KC_KEY_SCHEMA:-SCHEMA_REGISTRY}"
   )
   public String keySchema;
+
+  @Option(
+    names = {"--value-schema"},
+    description = "Value schema",
+    defaultValue = "${env:KC_VALUE_SCHEMA:-SCHEMA_REGISTRY}"
+  )
+  public String valueSchema;
 
   @Parameters(
     description = "Input topics"
   )
   public Set<String> topics;
+
+  public PrintStream out = System.out;
 
   @Override
   public Integer call() throws Exception {
@@ -112,18 +126,36 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
     var filter = groovyFilter(shell);
     var projection = groovyProjection(shell);
     var props = consumerProps();
+    var keySchema = parseSchema(this.keySchema);
+    var valueSchema = parseSchema(this.valueSchema);
+    var keyDecoderProps = decoderProps(keySchema);
+    var valueDecoderProps = decoderProps(valueSchema);
     try (var consumer = new KafkaConsumer<>(props, new ByteArrayDeserializer(), new ByteArrayDeserializer())) {
       var offs = offsetForTimes(consumer);
       var endOffs = consumer.endOffsets(offs.keySet());
+      long toMillis = to.toEpochMilli();
       consumer.assign(offs.keySet());
       offs.forEach((k, v) -> consumer.seek(k, v.offset()));
       offs.keySet().removeIf(tp -> endOffs.getOrDefault(tp, 0L) <= 0L);
       while (!offs.isEmpty()) {
         var pollResult = consumer.poll(pollTimeout);
         pollResult.partitions().parallelStream().forEach(tp -> {
-          long endOff = endOffs.getOrDefault(tp, 0L);
+          long endOff = endOffs.getOrDefault(tp, 1L) - 1L;
           var rawRecords = pollResult.records(tp);
-
+          var lastRawRecord = rawRecords.get(rawRecords.size() - 1);
+          if (lastRawRecord.offset() >= endOff || lastRawRecord.timestamp() >= toMillis) {
+            offs.remove(tp);
+          }
+          rawRecords.parallelStream()
+            .filter(r -> r.timestamp() < toMillis)
+            .map(r -> new Object[]{
+              r,
+              keyFormat.decode(r.key(), keyDecoderProps),
+              valueFormat.decode(r.value(), valueDecoderProps)
+            })
+            .filter(filter::call)
+            .map(projection::call)
+            .forEachOrdered(out::println);
         });
       }
     }
@@ -159,5 +191,26 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
     var result = new ConcurrentSkipListMap<TopicPartition, OffsetAndTimestamp>(comparator);
     result.putAll(consumer.offsetsForTimes(tp));
     return result;
+  }
+
+  private Schema parseSchema(String schema) {
+    switch (schema) {
+      case "SCHEMA_REGISTRY": return null;
+      case "STRING": return Schema.create(Schema.Type.STRING);
+      case "LONG": return Schema.create(Schema.Type.LONG);
+      case "INT": return Schema.create(Schema.Type.INT);
+      case "DOUBLE": return Schema.create(Schema.Type.DOUBLE);
+      case "FLOAT": return Schema.create(Schema.Type.FLOAT);
+      case "BYTES": return Schema.create(Schema.Type.BYTES);
+      case "BOOLEAN": return Schema.create(Schema.Type.BOOLEAN);
+      default: return new Schema.Parser().parse(schema);
+    }
+  }
+
+  private EnumMap<DecoderKey, Object> decoderProps(Schema schema) {
+    var map = new EnumMap<>(DecoderKey.class);
+    map.put(DecoderKey.SCHEMA_REGISTRY, schemaRegistry);
+    map.put(DecoderKey.SCHEMA, schema);
+    return map;
   }
 }

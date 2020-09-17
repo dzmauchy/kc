@@ -28,6 +28,8 @@ tasks.withType<Test> {
     "--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED"
   )
 
+  systemProperty("java.util.logging.config.class", "org.dzmauchy.kc.logging.TestLoggingConfigurer")
+
   testLogging {
     events = enumValues<org.gradle.api.tasks.testing.logging.TestLogEvent>().toSet()
     exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
@@ -47,7 +49,8 @@ tasks.withType<Test> {
 dependencies {
   implementation(group = "org.apache.kafka", name = "kafka-clients", version = "$confluentVersion-ccs")
   implementation(group = "org.codehaus.groovy", name = "groovy-json", version = "3.0.5", classifier = "indy")
-  implementation(group = "org.jboss.logmanager", name = "jboss-logmanager", version = "2.1.17.Final")
+  implementation(group = "org.apache.avro", name = "avro", version = "1.9.2")
+  implementation(group = "org.apache.karaf.shell", name = "org.apache.karaf.shell.table", version = "4.0.10")
   implementation(group = "org.slf4j", name = "slf4j-jdk14", version = "1.7.30")
 
   testImplementation(platform("org.junit:junit-bom:5.6.2"))

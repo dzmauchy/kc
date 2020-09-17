@@ -11,7 +11,8 @@ import java.util.concurrent.Callable;
   versionProvider = KcVersionProvider.class,
   subcommands = {
     FetchCommand.class,
-    OffsetsCommand.class
+    OffsetsCommand.class,
+    TopicsCommand.class
   }
 )
 public class MainCommand implements Callable<Integer> {
