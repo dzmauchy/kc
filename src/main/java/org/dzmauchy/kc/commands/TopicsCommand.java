@@ -45,7 +45,7 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
         if (description != null) {
           table.addRow().addContent(
             description.name(),
-            description.partitions(),
+            description.partitions().size(),
             description.isInternal(),
             description.authorizedOperations().stream().map(AclOperation::code).map(Object::toString).collect(joining(","))
           );
