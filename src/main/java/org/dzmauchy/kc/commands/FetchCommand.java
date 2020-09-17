@@ -214,7 +214,6 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
         result.put(k, v);
       } else {
         logger.warn("No data for {}", k);
-        result.put(k, new OffsetAndTimestamp(0L, 0L));
       }
     });
     return result;
