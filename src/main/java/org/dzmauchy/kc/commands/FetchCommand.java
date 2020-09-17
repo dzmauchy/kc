@@ -11,6 +11,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.karaf.shell.table.ShellTable;
 import org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper;
 import org.dzmauchy.kc.converters.InstantConverter;
 import org.dzmauchy.kc.converters.PropertiesConverter;
@@ -23,10 +24,7 @@ import java.io.PrintStream;
 import java.rmi.server.UID;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.EnumMap;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
@@ -116,7 +114,7 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
   @Parameters(
     description = "Input topics"
   )
-  public Set<String> topics;
+  public List<String> topics;
 
   public PrintStream out = System.out;
 
@@ -133,10 +131,12 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
     try (var consumer = new KafkaConsumer<>(props, new ByteArrayDeserializer(), new ByteArrayDeserializer())) {
       var offs = offsetForTimes(consumer);
       var endOffs = consumer.endOffsets(offs.keySet());
+      offs.keySet().removeIf(tp -> endOffs.getOrDefault(tp, 0L) <= 0L);
+      printSubscription(offs, endOffs);
+      long fromMillis = from.toEpochMilli();
       long toMillis = to.toEpochMilli();
       consumer.assign(offs.keySet());
       offs.forEach((k, v) -> consumer.seek(k, v.offset()));
-      offs.keySet().removeIf(tp -> endOffs.getOrDefault(tp, 0L) <= 0L);
       while (!offs.isEmpty()) {
         var pollResult = consumer.poll(pollTimeout);
         pollResult.partitions().parallelStream().forEach(tp -> {
@@ -147,7 +147,7 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
             offs.remove(tp);
           }
           rawRecords.parallelStream()
-            .filter(r -> r.timestamp() < toMillis)
+            .filter(r -> r.timestamp() >= fromMillis && r.timestamp() < toMillis)
             .map(r -> new Object[]{
               r,
               keyFormat.decode(r.key(), keyDecoderProps),
@@ -160,6 +160,25 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
       }
     }
     return 0;
+  }
+
+  private void printSubscription(Map<TopicPartition, OffsetAndTimestamp> offs, Map<TopicPartition, Long> endOffs) {
+    var table = new ShellTable();
+    table.column("Topic").alignLeft();
+    table.column("Partition").alignRight();
+    table.column("Offset").alignRight();
+    table.column("Timestamp").alignCenter();
+    table.column("End offset").alignRight();
+    offs.forEach((tp, omd) -> {
+      table.addRow().addContent(
+        tp.topic(),
+        tp.partition(),
+        omd.offset(),
+        Instant.ofEpochMilli(omd.timestamp()),
+        endOffs.getOrDefault(tp, -1L)
+      );
+    });
+    table.print(System.err);
   }
 
   private BooleanClosureWrapper groovyFilter(GroovyShell shell) {
@@ -182,14 +201,22 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
 
   private ConcurrentSkipListMap<TopicPartition, OffsetAndTimestamp> offsetForTimes(KafkaConsumer<?, ?> consumer) {
     var tp = consumer.listTopics().entrySet().stream()
-      .filter(e -> topics.contains(e.getKey()))
+      .filter(e -> topics.parallelStream().anyMatch(p -> e.getKey().matches(p)))
       .flatMap(e -> e.getValue().stream().map(v -> new TopicPartition(e.getKey(), v.partition())))
       .collect(Collectors.toUnmodifiableMap(e -> e, e -> from.toEpochMilli()));
     final Comparator<TopicPartition> comparator = Comparator
       .comparing(TopicPartition::topic)
       .thenComparingInt(TopicPartition::partition);
     var result = new ConcurrentSkipListMap<TopicPartition, OffsetAndTimestamp>(comparator);
-    result.putAll(consumer.offsetsForTimes(tp));
+    var remoteTimes = consumer.offsetsForTimes(tp);
+    remoteTimes.forEach((k, v) -> {
+      if (v != null) {
+        result.put(k, v);
+      } else {
+        logger.warn("No data for {}", k);
+        result.put(k, new OffsetAndTimestamp(0L, 0L));
+      }
+    });
     return result;
   }
 

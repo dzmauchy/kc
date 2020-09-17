@@ -6,7 +6,7 @@ import java.util.List;
 
 import static groovyjarjarpicocli.CommandLine.Help.Visibility.ALWAYS;
 
-public abstract class AbstractKafkaCommand {
+public abstract class AbstractKafkaCommand extends AbstractCommand {
 
   @Option(
     names = {"--bootstrap-servers"},

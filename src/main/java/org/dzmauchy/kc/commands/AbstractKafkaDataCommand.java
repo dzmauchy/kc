@@ -6,7 +6,7 @@ import java.net.URI;
 
 import static groovyjarjarpicocli.CommandLine.Help.Visibility.ALWAYS;
 
-public class AbstractKafkaDataCommand extends AbstractKafkaCommand {
+public abstract class AbstractKafkaDataCommand extends AbstractKafkaCommand {
 
   @Option(
     names = {"--schema-registry"},

@@ -8,7 +8,7 @@ import org.dzmauchy.kc.kafka.KafkaProperties;
 import java.rmi.server.UID;
 import java.util.TreeMap;
 
-public class AbstractAdminClientCommand extends AbstractKafkaCommand {
+public abstract class AbstractAdminClientCommand extends AbstractKafkaCommand {
 
   @Option(
     names = {"--client-properties"},
