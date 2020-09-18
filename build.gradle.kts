@@ -62,3 +62,12 @@ configure<JavaPluginConvention> {
   sourceCompatibility = javaVersion
   targetCompatibility = javaVersion
 }
+
+application {
+  mainClassName = "org.ku.kc.Kc"
+  applicationName = "kc"
+}
+
+tasks.withType<CreateStartScripts> {
+  classpath = files("*", "conf")
+}
