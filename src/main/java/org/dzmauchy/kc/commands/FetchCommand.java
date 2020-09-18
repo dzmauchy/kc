@@ -15,6 +15,7 @@ import org.apache.karaf.shell.table.ShellTable;
 import org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper;
 import org.dzmauchy.kc.converters.InstantConverter;
 import org.dzmauchy.kc.converters.PropertiesConverter;
+import org.dzmauchy.kc.format.OutputFormatter;
 import org.dzmauchy.kc.groovy.GroovyShellProvider;
 import org.dzmauchy.kc.kafka.DecoderKey;
 import org.dzmauchy.kc.kafka.Format;
@@ -64,7 +65,7 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
   @Option(
     names = {"-p", "--projection"},
     description = "Projection expression",
-    defaultValue = "$v"
+    defaultValue = "[k: $k, v: $v]"
   )
   public String projection;
 
@@ -120,6 +121,7 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
 
   @Override
   public Integer call() throws Exception {
+    var outputFormatter = new OutputFormatter();
     var shell = GroovyShellProvider.defaultShell();
     var filter = groovyFilter(shell);
     var projection = groovyProjection(shell);
@@ -155,7 +157,8 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
             })
             .filter(filter::call)
             .map(projection::call)
-            .forEachOrdered(out::println);
+            .map(outputFormatter::format)
+            .forEachOrdered(System.out::println);
         });
       }
     }
