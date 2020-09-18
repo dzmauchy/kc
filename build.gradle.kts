@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.ku"
-version = "0.1.1"
+version = "0.1.2"
 
 val javaVersion = JavaVersion.VERSION_11
 val confluentVersion = "5.4.2"
