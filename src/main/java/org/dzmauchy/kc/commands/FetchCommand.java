@@ -27,6 +27,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 @Command(
@@ -138,6 +140,7 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
       long toMillis = to.toEpochMilli();
       consumer.assign(offs.keySet());
       offs.forEach((k, v) -> consumer.seek(k, v.offset()));
+      var counter = new LongAdder();
       while (!offs.isEmpty()) {
         var pollResult = consumer.poll(pollTimeout);
         pollResult.partitions().parallelStream().forEach(tp -> {
@@ -157,8 +160,12 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
             .filter(filter::call)
             .map(projection::call)
             .map(outputFormatter::format)
+            .peek(e -> counter.increment())
             .forEachOrdered(out::println);
         });
+      }
+      if (!quiet) {
+        err.printf("Count: %d%n", counter.sum());
       }
     }
     return 0;
