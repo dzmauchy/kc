@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.ku"
-version = "0.1-SNAPSHOT"
+version = "0.1.1"
 
 val javaVersion = JavaVersion.VERSION_11
 val confluentVersion = "5.4.2"
@@ -28,7 +28,7 @@ tasks.withType<Test> {
     "--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED"
   )
 
-  systemProperty("java.util.logging.config.class", "org.dzmauchy.kc.logging.TestLoggingConfigurer")
+  systemProperty("java.util.logging.config.class", "org.ku.kc.logging.TestLoggingConfigurer")
 
   testLogging {
     events = enumValues<org.gradle.api.tasks.testing.logging.TestLogEvent>().toSet()
