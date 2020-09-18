@@ -21,7 +21,6 @@ import org.dzmauchy.kc.kafka.DecoderKey;
 import org.dzmauchy.kc.kafka.Format;
 import org.dzmauchy.kc.kafka.KafkaProperties;
 
-import java.io.PrintStream;
 import java.rmi.server.UID;
 import java.time.Duration;
 import java.time.Instant;
@@ -117,8 +116,6 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
   )
   public List<String> topics;
 
-  public PrintStream out = System.out;
-
   @Override
   public Integer call() throws Exception {
     var outputFormatter = new OutputFormatter();
@@ -134,7 +131,9 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
       var offs = offsetForTimes(consumer);
       var endOffs = consumer.endOffsets(offs.keySet());
       offs.keySet().removeIf(tp -> endOffs.getOrDefault(tp, 0L) <= 0L);
-      printSubscription(offs, endOffs);
+      if (!quiet) {
+        printSubscription(offs, endOffs);
+      }
       long fromMillis = from.toEpochMilli();
       long toMillis = to.toEpochMilli();
       consumer.assign(offs.keySet());
@@ -158,7 +157,7 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
             .filter(filter::call)
             .map(projection::call)
             .map(outputFormatter::format)
-            .forEachOrdered(System.out::println);
+            .forEachOrdered(out::println);
         });
       }
     }
@@ -181,7 +180,7 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
         endOffs.getOrDefault(tp, -1L)
       );
     });
-    table.print(System.err);
+    table.print(err);
   }
 
   private BooleanClosureWrapper groovyFilter(GroovyShell shell) {
