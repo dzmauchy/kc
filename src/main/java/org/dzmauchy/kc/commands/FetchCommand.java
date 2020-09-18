@@ -197,7 +197,6 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
     var props = consumerProperties.getMap();
     props.computeIfAbsent(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, k -> String.join(",", bootstrapServers));
     props.computeIfAbsent(ConsumerConfig.CLIENT_ID_CONFIG, k -> new UID().toString());
-    props.computeIfAbsent(ConsumerConfig.GROUP_ID_CONFIG, k -> new UID().toString());
     return props;
   }
 
