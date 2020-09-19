@@ -5,7 +5,6 @@ import groovy.lang.GroovyShell;
 import groovyjarjarpicocli.CommandLine.Option;
 import org.apache.avro.Schema;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.karaf.shell.table.ShellTable;
@@ -20,12 +19,9 @@ import org.ku.kc.kafka.KafkaProperties;
 import java.rmi.server.UID;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.stream.Collectors;
 
 public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
 
