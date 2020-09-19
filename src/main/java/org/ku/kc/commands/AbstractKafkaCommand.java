@@ -1,7 +1,9 @@
 package org.ku.kc.commands;
 
 import groovyjarjarpicocli.CommandLine.Option;
+import org.apache.kafka.common.TopicPartition;
 
+import java.util.Comparator;
 import java.util.List;
 
 import static groovyjarjarpicocli.CommandLine.Help.Visibility.ALWAYS;
@@ -17,4 +19,10 @@ public abstract class AbstractKafkaCommand extends AbstractCommand {
     split = ","
   )
   public List<String> bootstrapServers;
+
+  protected Comparator<TopicPartition> tpc() {
+    return Comparator
+      .comparing(TopicPartition::topic)
+      .thenComparingInt(TopicPartition::partition);
+  }
 }
