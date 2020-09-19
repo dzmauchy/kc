@@ -1,30 +1,17 @@
 package org.ku.kc.commands;
 
-import groovy.lang.Closure;
-import groovy.lang.GroovyShell;
 import groovyjarjarpicocli.CommandLine.Command;
 import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;
-import org.apache.avro.Schema;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.apache.karaf.shell.table.ShellTable;
-import org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper;
 import org.ku.kc.converters.InstantConverter;
-import org.ku.kc.converters.PropertiesConverter;
-import org.ku.kc.format.OutputFormatter;
-import org.ku.kc.groovy.GroovyShellProvider;
-import org.ku.kc.kafka.DecoderKey;
-import org.ku.kc.kafka.Format;
-import org.ku.kc.kafka.KafkaProperties;
 
-import java.rmi.server.UID;
-import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.LongAdder;
@@ -37,7 +24,7 @@ import java.util.stream.Collectors;
   mixinStandardHelpOptions = true,
   showDefaultValues = true
 )
-public class FetchCommand extends AbstractKafkaDataCommand implements Callable<Integer> {
+public class FetchCommand extends AbstractFetchCommand implements Callable<Integer> {
 
   @Option(
     names = {"-F", "--from"},
@@ -55,63 +42,6 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
   )
   public Instant to;
 
-  @Option(
-    names = {"-f", "--filter"},
-    description = "Groovy expression to filter incoming messages",
-    defaultValue = "true"
-  )
-  public String filter;
-
-  @Option(
-    names = {"-p", "--projection"},
-    description = "Projection expression",
-    defaultValue = "[k: $k, v: $v]"
-  )
-  public String projection;
-
-  @Option(
-    names = {"--consumer-properties"},
-    description = "Consumer properties",
-    converter = PropertiesConverter.class,
-    defaultValue = ""
-  )
-  public KafkaProperties consumerProperties;
-
-  @Option(
-    names = {"-t", "--poll-timeout"},
-    description = "Poll timeout",
-    defaultValue = "PT5S"
-  )
-  public Duration pollTimeout;
-
-  @Option(
-    names = {"-k", "--key-format"},
-    description = "Key format",
-    defaultValue = "${env:KC_KEY_FORMAT:-BYTES}"
-  )
-  public Format keyFormat;
-
-  @Option(
-    names = {"-v", "--value-format"},
-    description = "Value format",
-    defaultValue = "${env:KC_VALUE_FORMAT:-BYTES}"
-  )
-  public Format valueFormat;
-
-  @Option(
-    names = {"--key-schema"},
-    description = "Key schema",
-    defaultValue = "${env:KC_KEY_SCHEMA:-SCHEMA_REGISTRY}"
-  )
-  public String keySchema;
-
-  @Option(
-    names = {"--value-schema"},
-    description = "Value schema",
-    defaultValue = "${env:KC_VALUE_SCHEMA:-SCHEMA_REGISTRY}"
-  )
-  public String valueSchema;
-
   @Parameters(
     description = "Input topics"
   )
@@ -119,16 +49,8 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
 
   @Override
   public Integer call() throws Exception {
-    var outputFormatter = new OutputFormatter();
-    var shell = GroovyShellProvider.defaultShell();
-    var filter = groovyFilter(shell);
-    var projection = groovyProjection(shell);
-    var props = consumerProps();
-    var keySchema = parseSchema(this.keySchema);
-    var valueSchema = parseSchema(this.valueSchema);
-    var keyDecoderProps = decoderProps(keySchema);
-    var valueDecoderProps = decoderProps(valueSchema);
-    try (var consumer = new KafkaConsumer<>(props, new ByteArrayDeserializer(), new ByteArrayDeserializer())) {
+    var state = new FetchState();
+    try (var consumer = new KafkaConsumer<>(consumerProps(), new ByteArrayDeserializer(), new ByteArrayDeserializer())) {
       var offs = offsetForTimes(consumer);
       var endOffs = consumer.endOffsets(offs.keySet());
       offs.keySet().removeIf(tp -> endOffs.getOrDefault(tp, 0L) <= 0L);
@@ -153,12 +75,12 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
             .filter(r -> r.timestamp() >= fromMillis && r.timestamp() < toMillis)
             .map(r -> new Object[]{
               r,
-              keyFormat.decode(r.key(), keyDecoderProps),
-              valueFormat.decode(r.value(), valueDecoderProps)
+              keyFormat.decode(r.key(), state.keyDecoderProps),
+              valueFormat.decode(r.value(), state.valueDecoderProps)
             })
-            .filter(filter::call)
-            .map(projection::call)
-            .map(outputFormatter::format)
+            .filter(state.filter::call)
+            .map(state.projection::call)
+            .map(state.outputFormatter::format)
             .peek(e -> counter.increment())
             .forEachOrdered(out::println);
         });
@@ -168,42 +90,6 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
       }
     }
     return 0;
-  }
-
-  private void printSubscription(Map<TopicPartition, OffsetAndTimestamp> offs, Map<TopicPartition, Long> endOffs) {
-    var table = new ShellTable();
-    table.column("Topic").alignLeft();
-    table.column("Partition").alignRight();
-    table.column("Offset").alignRight();
-    table.column("Timestamp").alignCenter();
-    table.column("End offset").alignRight();
-    offs.forEach((tp, omd) -> {
-      table.addRow().addContent(
-        tp.topic(),
-        tp.partition(),
-        omd.offset(),
-        Instant.ofEpochMilli(omd.timestamp()),
-        endOffs.getOrDefault(tp, -1L)
-      );
-    });
-    table.print(err);
-  }
-
-  private BooleanClosureWrapper groovyFilter(GroovyShell shell) {
-    return new BooleanClosureWrapper(
-      (Closure<?>) shell.evaluate("{$r, $k, $v -> $v.with {CODE}}".replace("CODE", filter))
-    );
-  }
-
-  private Closure<?> groovyProjection(GroovyShell shell) {
-    return (Closure<?>) shell.evaluate("{$r, $k, $v -> $v.with {CODE}}".replace("CODE", projection));
-  }
-
-  private TreeMap<String, Object> consumerProps() {
-    var props = consumerProperties.getMap();
-    props.computeIfAbsent(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, k -> String.join(",", bootstrapServers));
-    props.computeIfAbsent(ConsumerConfig.CLIENT_ID_CONFIG, k -> new UID().toString());
-    return props;
   }
 
   private ConcurrentSkipListMap<TopicPartition, OffsetAndTimestamp> offsetForTimes(KafkaConsumer<?, ?> consumer) {
@@ -224,26 +110,5 @@ public class FetchCommand extends AbstractKafkaDataCommand implements Callable<I
       }
     });
     return result;
-  }
-
-  private Schema parseSchema(String schema) {
-    switch (schema) {
-      case "SCHEMA_REGISTRY": return null;
-      case "STRING": return Schema.create(Schema.Type.STRING);
-      case "LONG": return Schema.create(Schema.Type.LONG);
-      case "INT": return Schema.create(Schema.Type.INT);
-      case "DOUBLE": return Schema.create(Schema.Type.DOUBLE);
-      case "FLOAT": return Schema.create(Schema.Type.FLOAT);
-      case "BYTES": return Schema.create(Schema.Type.BYTES);
-      case "BOOLEAN": return Schema.create(Schema.Type.BOOLEAN);
-      default: return new Schema.Parser().parse(schema);
-    }
-  }
-
-  private EnumMap<DecoderKey, Object> decoderProps(Schema schema) {
-    var map = new EnumMap<>(DecoderKey.class);
-    map.put(DecoderKey.SCHEMA_REGISTRY, schemaRegistry);
-    map.put(DecoderKey.SCHEMA, schema);
-    return map;
   }
 }
