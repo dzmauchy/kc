@@ -11,6 +11,7 @@ import java.util.concurrent.Callable;
   versionProvider = KcVersionProvider.class,
   subcommands = {
     FetchCommand.class,
+    SelectCommand.class,
     OffsetsCommand.class,
     TopicsCommand.class
   }

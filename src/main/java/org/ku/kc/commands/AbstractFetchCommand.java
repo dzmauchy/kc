@@ -140,7 +140,6 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
   }
 
   protected class FetchState {
-
     public final OutputFormatter outputFormatter = new OutputFormatter();
     public final GroovyShell shell = GroovyShellProvider.defaultShell();
     public final BooleanClosureWrapper filter = groovyFilter(shell);
