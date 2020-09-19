@@ -28,7 +28,7 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
     description = "Partition number",
     defaultValue = "0"
   )
-  private int partition;
+  public int partition;
 
   @Parameters(
     description = "Input topics"
