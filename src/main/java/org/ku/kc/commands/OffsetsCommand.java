@@ -9,7 +9,9 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.karaf.shell.table.ShellTable;
 
+import java.text.DecimalFormat;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +37,7 @@ public class OffsetsCommand extends AbstractAdminClientCommand implements Callab
 
   @Override
   public Integer call() throws Exception {
+    var offsetFormat = new DecimalFormat("0.0000E00");
     try (var consumer = new KafkaConsumer<>(clientProps(), new ByteArrayDeserializer(), new ByteArrayDeserializer())) {
       var partitions = consumer.listTopics().entrySet().parallelStream()
         .filter(e -> topics.stream().anyMatch(p -> e.getKey().matches(p)))
@@ -70,7 +73,8 @@ public class OffsetsCommand extends AbstractAdminClientCommand implements Callab
           table.column("Partition").alignLeft();
           table.column("Start offset").alignRight();
           table.column("End offset").alignRight();
-          table.column("Start time").alignCenter();
+          table.column("Offset diff").alignRight();
+          table.column("Start time").alignLeft();
           for (var tp : topicPartitions) {
             var endOff = endOffsets.getOrDefault(tp, -1L);
             var startOff = beginOffsets.getOrDefault(tp, -1L);
@@ -79,7 +83,8 @@ public class OffsetsCommand extends AbstractAdminClientCommand implements Callab
               tp.partition(),
               startOff,
               endOff,
-              Instant.ofEpochMilli(startTimestamp.timestamp())
+              offsetFormat.format(endOff - startOff),
+              defaultTimeFormatter.format(Instant.ofEpochMilli(startTimestamp.timestamp()).atOffset(ZoneOffset.UTC))
             );
           }
           table.print(err);
