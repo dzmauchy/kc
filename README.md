@@ -29,5 +29,13 @@ Java 11 or higher
 
 # Commands
 
+## Common parameters
+
+### For all commands
+
+#### --quiet
+
+If specified, disables additional output to stderr.
+
 ## topics (t)
 
