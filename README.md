@@ -41,9 +41,10 @@ If specified, disables additional output to stderr.
 
 #### --bootstrap-servers=\<Kafka bootstrap server list>
 Comma-separated list of the Kafka bootstrap servers.
-<br>
-1st default: KAFKA_BOOTSTRAP_SERVERS environment variable.
-2nd default: localhost:9092
+|Default|Value|
+|-|-|
+|1st default|KAFKA_BOOTSTRAP_SERVERS environment variable|
+|2nd default|localhost:9092|
 
 ## topics (t)
 
