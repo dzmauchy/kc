@@ -15,3 +15,7 @@ Kafka Console is distributed as .zip file. After unpacking it, the following dir
 * conf
   * README.txt
   * (any files to be added to the classpath)
+
+# Requirements
+
+Java 11 or higher
