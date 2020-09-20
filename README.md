@@ -1,5 +1,13 @@
 Kafka Console
 -------------
+# Summary
+
+Kafka Console is a command-line utility to make some **read-only** operations:
+* to fetch messages from Kafka topics within a given time window filtered by Groovy expressions. Output messages could be transformed using Groovy expression too
+* to select messages between offsets
+* to get current offset information (including starting date of the first offset)
+* to get topic listing
+
 # Downloads
 [Releases](https://github.com/dzmauchy/kc/releases)
 
