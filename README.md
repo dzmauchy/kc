@@ -37,5 +37,9 @@ Java 11 or higher
 
 If specified, disables additional output to stderr.
 
+### For all commands accessing Kafka
+
+#### --bootstrap-servers=<Kafka bootstrap server list>
+
 ## topics (t)
 
