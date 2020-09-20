@@ -14,7 +14,6 @@ Kafka Console is a command-line utility to make some **read-only** operations:
 # Distribution
 
 Kafka Console is distributed as .zip file. After unpacking it, the following directory layout is present:
-
 * bin
   * kc (executable for any Unix-like OS)
   * kc.bat (executable for Windows)
