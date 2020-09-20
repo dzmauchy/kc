@@ -10,3 +10,6 @@ Kafka Console is distributed as .zip file. After unpacking it, the following dir
   * kc.bat
 * lib
   * ... (jar files)
+* conf
+  * README.txt
+  * (any files to be added to the classpath)
