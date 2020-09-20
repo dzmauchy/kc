@@ -19,3 +19,8 @@ Kafka Console is distributed as .zip file. After unpacking it, the following dir
 # Requirements
 
 Java 11 or higher
+
+# Commands
+
+## topics (t)
+
