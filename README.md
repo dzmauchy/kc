@@ -46,5 +46,15 @@ Comma-separated list of the Kafka bootstrap servers.
 |1st default|KAFKA_BOOTSTRAP_SERVERS environment variable|
 |2nd default|localhost:9092|
 
+### For all commands reading Kafka topics
+
+#### --schema-registry=\<AVRO schema registry url>
+AVRO schema registry url with slash at the end, e.g. ```http://my-server.com/```
+|Default|Value|
+|-|-|
+|1st default|SCHEMA_REGISTRY environment variable|
+|2nd default|http://localhost:2181/|
+
+
 ## topics (t)
 
