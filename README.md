@@ -1,5 +1,5 @@
-Kafka Console
--------------
+Kafka Console (kc)
+------------------
 # Summary
 
 Kafka Console is a command-line utility to make some **read-only** operations:
