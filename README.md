@@ -1,5 +1,7 @@
 Kafka Console
 -------------
+# Downloads
+[Releases](https://github.com/dzmauchy/kc/releases)
 
 # Distribution
 
