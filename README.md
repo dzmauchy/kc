@@ -39,7 +39,7 @@ If specified, disables additional output to stderr.
 
 ### For all commands accessing Kafka
 
-#### --bootstrap-servers=<Kafka bootstrap server list>
+#### --bootstrap-servers=\<Kafka bootstrap server list>
 
 ## topics (t)
 
