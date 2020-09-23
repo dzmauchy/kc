@@ -42,7 +42,7 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
         var table = new ShellTable();
         table.column("Topic").alignLeft();
         table.column("Partitions").alignCenter();
-        table.column("Internal").alignCenter();
+        table.column("Replicas").alignCenter();
         table.column("Operations").alignLeft();
         for (var topic : topics) {
           var description = descriptions.get(topic);
@@ -50,7 +50,7 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
             table.addRow().addContent(
               description.name(),
               description.partitions().size(),
-              description.isInternal(),
+              description.partitions().stream().mapToInt(r -> r.replicas().size()).max().orElse(0),
               description.authorizedOperations().stream().map(AclOperation::code).map(Object::toString).collect(joining(","))
             );
           }
@@ -65,7 +65,7 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
             Map.of(
               "topic", description.name(),
               "partitions", description.partitions().size(),
-              "internal", description.isInternal(),
+              "replicas", description.partitions().stream().mapToInt(r -> r.replicas().size()).max().orElse(0),
               "operations", description.authorizedOperations().stream().mapToInt(AclOperation::code).toArray()
             )
           );
