@@ -4,6 +4,7 @@ import groovy.json.JsonOutput;
 import groovyjarjarpicocli.CommandLine.Command;
 import groovyjarjarpicocli.CommandLine.Option;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.ListTopicsOptions;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.karaf.shell.table.ShellTable;
 
@@ -30,10 +31,20 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
   )
   public String pattern;
 
+  @Option(
+    names = {"--list-internal"},
+    description = "Topic name pattern",
+    fallbackValue = "true",
+    defaultValue = "false"
+  )
+  public boolean internal;
+
   @Override
   public Integer call() throws Exception {
     try (var client = AdminClient.create(clientProps())) {
-      var topics = client.listTopics().names().get().parallelStream()
+      var opts = new ListTopicsOptions()
+        .listInternal(internal);
+      var topics = client.listTopics(opts).names().get().parallelStream()
         .filter(s -> s.matches(pattern))
         .sorted()
         .collect(Collectors.toUnmodifiableList());
