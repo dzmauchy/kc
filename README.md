@@ -55,6 +55,23 @@ AVRO schema registry url with slash at the end, e.g. ```http://my-server.com/```
 |1st default|SCHEMA_REGISTRY environment variable|
 |2nd default|http://localhost:2181/|
 
+### For all commands fetching data
+
+#### -f=\<filter expression>, --filter=\<filter expression>
+
+A groovy expression to filter incoming records.
+
+|Default|Value|
+|-|-|
+|1st default|true|
+
+#### -p=\<projection expression>, --projection=\<projection expression>
+
+A groovy expression to map the filtered records to an appropriate structure.
+
+|Default|Value|
+|-|-|
+|1st default|```[k: $k, v: $v]```|
+
 
 ## topics (t)
-
