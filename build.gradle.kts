@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.ku"
-version = "0.1.2"
+version = "0.1.3"
 
 val javaVersion = JavaVersion.VERSION_11
 val confluentVersion = "5.4.2"
@@ -39,12 +39,12 @@ tasks.withType<Test> {
 
 dependencies {
   implementation(group = "org.apache.kafka", name = "kafka-clients", version = "$confluentVersion-ccs")
-  implementation(group = "org.codehaus.groovy", name = "groovy-json", version = "3.0.5", classifier = "indy")
+  implementation(group = "org.codehaus.groovy", name = "groovy-json", version = "3.0.7", classifier = "indy")
   implementation(group = "org.apache.avro", name = "avro", version = "1.9.2")
   implementation(group = "org.apache.karaf.shell", name = "org.apache.karaf.shell.table", version = "4.0.10")
   implementation(group = "org.slf4j", name = "slf4j-jdk14", version = "1.7.30")
 
-  testImplementation(platform("org.junit:junit-bom:5.6.2"))
+  testImplementation(platform("org.junit:junit-bom:5.7.0"))
   testImplementation(group = "org.junit.jupiter", name = "junit-jupiter-engine")
   testImplementation(group = "org.junit.jupiter", name = "junit-jupiter-params")
 }
@@ -55,7 +55,7 @@ configure<JavaPluginConvention> {
 }
 
 application {
-  mainClassName = "org.ku.kc.Kc"
+  mainClass.set("org.ku.kc.Kc")
   applicationName = "kc"
 }
 
