@@ -17,4 +17,13 @@ public abstract class AbstractKafkaDataCommand extends AbstractKafkaCommand {
   )
   public URI schemaRegistry;
 
+  @Option(
+    names = {"--transactional", "--tx"},
+    description = "Transactional enabled",
+    defaultValue = "false",
+    showDefaultValue = ALWAYS,
+    fallbackValue = "true"
+  )
+  public boolean transactional;
+
 }

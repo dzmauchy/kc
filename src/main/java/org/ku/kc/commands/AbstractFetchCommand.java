@@ -115,7 +115,11 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
     var props = consumerProperties.getMap();
     props.computeIfAbsent(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, k -> String.join(",", bootstrapServers));
     props.computeIfAbsent(ConsumerConfig.CLIENT_ID_CONFIG, k -> new UID().toString());
+    if (transactional) {
+      props.putIfAbsent(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+    }
     props.putIfAbsent(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "4096");
+    props.putIfAbsent(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
     return props;
   }
 
