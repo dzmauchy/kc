@@ -14,6 +14,7 @@ import java.util.Base64;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.IntStream;
 
 public enum Format {
 
@@ -21,6 +22,12 @@ public enum Format {
     @Override
     public Object decode(byte[] data, EnumMap<DecoderKey, Object> properties) {
       return data;
+    }
+  },
+  BASE64 {
+    @Override
+    public Object decode(byte[] data, EnumMap<DecoderKey, Object> properties) {
+      return data == null ? "" : "[" + data.length + "] " + Base64.getEncoder().encodeToString(data);
     }
   },
   STRING {

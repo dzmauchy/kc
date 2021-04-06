@@ -14,7 +14,7 @@ public abstract class AbstractKafkaCommand extends AbstractCommand {
     names = {"--bootstrap-servers"},
     paramLabel = "<bootstrap-server>",
     description = "KAFKA bootstrap servers",
-    defaultValue = "${env:KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}",
+    defaultValue = "${env:KAFKA_BOOTSTRAP_SERVERS:-${sys:KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}}",
     showDefaultValue = ALWAYS,
     split = ","
   )

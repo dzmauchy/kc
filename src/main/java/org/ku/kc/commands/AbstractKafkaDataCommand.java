@@ -12,7 +12,7 @@ public abstract class AbstractKafkaDataCommand extends AbstractKafkaCommand {
     names = {"--schema-registry"},
     paramLabel = "<schema-registry-url>",
     description = "Schema registry URL",
-    defaultValue = "${env:SCHEMA_REGISTRY:-http://localhost:2181/}",
+    defaultValue = "${env:SCHEMA_REGISTRY:-${sys:SCHEMA_REGISTRY:-http://localhost:2181/}}",
     showDefaultValue = ALWAYS
   )
   public URI schemaRegistry;

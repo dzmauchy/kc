@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.ku"
-version = "0.1.4"
+version = "0.1.5"
 
 val javaVersion = JavaVersion.VERSION_11
 val confluentVersion = "5.4.2"
@@ -44,7 +44,7 @@ dependencies {
   implementation(group = "org.apache.karaf.shell", name = "org.apache.karaf.shell.table", version = "4.0.10")
   implementation(group = "org.slf4j", name = "slf4j-jdk14", version = "1.7.30")
 
-  testImplementation(platform("org.junit:junit-bom:5.7.0"))
+  testImplementation(platform("org.junit:junit-bom:5.7.1"))
   testImplementation(group = "org.junit.jupiter", name = "junit-jupiter-engine")
   testImplementation(group = "org.junit.jupiter", name = "junit-jupiter-params")
 }
