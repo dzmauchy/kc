@@ -4,15 +4,13 @@ plugins {
 }
 
 group = "org.ku"
-version = "0.1.5"
+version = "0.1.6"
 
 val javaVersion = JavaVersion.VERSION_11
-val confluentVersion = "5.4.2"
 
 repositories {
   mavenCentral()
   maven("https://plugins.gradle.org/m2/")
-  maven("https://packages.confluent.io/maven/")
 }
 
 tasks.withType<Test> {
@@ -38,7 +36,7 @@ tasks.withType<Test> {
 }
 
 dependencies {
-  implementation(group = "org.apache.kafka", name = "kafka-clients", version = "$confluentVersion-ccs")
+  implementation(group = "org.apache.kafka", name = "kafka-clients", version = "2.7.1")
   implementation(group = "org.codehaus.groovy", name = "groovy-json", version = "3.0.7", classifier = "indy")
   implementation(group = "org.apache.avro", name = "avro", version = "1.9.2")
   implementation(group = "org.apache.karaf.shell", name = "org.apache.karaf.shell.table", version = "4.0.10")
@@ -49,7 +47,7 @@ dependencies {
   testImplementation(group = "org.junit.jupiter", name = "junit-jupiter-params")
 }
 
-configure<JavaPluginConvention> {
+configure<JavaPluginExtension> {
   sourceCompatibility = javaVersion
   targetCompatibility = javaVersion
 }
