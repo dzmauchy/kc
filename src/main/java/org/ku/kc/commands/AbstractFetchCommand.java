@@ -7,6 +7,7 @@ import org.apache.avro.Schema;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.karaf.shell.table.ShellTable;
 import org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper;
 import org.ku.kc.converters.PropertiesConverter;
@@ -24,6 +25,15 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
+
+  protected static final ByteArrayDeserializer BAD = new ByteArrayDeserializer();
+
+  @Option(
+    names = {"--group"},
+    description = "Kafka consumer group",
+    defaultValue = ""
+  )
+  public String group;
 
   @Option(
     names = {"-f", "--filter"},
@@ -120,6 +130,11 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
     }
     props.putIfAbsent(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "4096");
     props.putIfAbsent(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
+    if (group.isBlank()) {
+      props.putIfAbsent(ConsumerConfig.GROUP_ID_CONFIG, new UID().toString());
+    } else {
+      props.putIfAbsent(ConsumerConfig.GROUP_ID_CONFIG, group);
+    }
     return props;
   }
 

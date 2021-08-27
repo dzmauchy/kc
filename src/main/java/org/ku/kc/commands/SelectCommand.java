@@ -5,7 +5,6 @@ import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -52,7 +51,7 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
   @Override
   public Integer call() throws Exception {
     var state = new FetchState();
-    try (var consumer = new KafkaConsumer<>(consumerProps(), new ByteArrayDeserializer(), new ByteArrayDeserializer())) {
+    try (var consumer = new KafkaConsumer<>(consumerProps(), BAD, BAD)) {
       var tps = topics.stream()
         .map(t -> new TopicPartition(t, partition))
         .collect(toConcurrentMap(identity(), t -> true));

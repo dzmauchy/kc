@@ -6,7 +6,6 @@ import groovyjarjarpicocli.CommandLine.Parameters;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.ku.kc.converters.InstantConverter;
 
 import java.time.Instant;
@@ -48,9 +47,9 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
   public List<String> topics;
 
   @Override
-  public Integer call() throws Exception {
+  public Integer call() {
     var state = new FetchState();
-    try (var consumer = new KafkaConsumer<>(consumerProps(), new ByteArrayDeserializer(), new ByteArrayDeserializer())) {
+    try (var consumer = new KafkaConsumer<>(consumerProps(), BAD, BAD)) {
       var offs = offsetForTimes(consumer);
       var endOffs = consumer.endOffsets(offs.keySet());
       offs.keySet().removeIf(tp -> endOffs.getOrDefault(tp, 0L) <= 0L);
