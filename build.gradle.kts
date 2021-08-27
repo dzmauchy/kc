@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.ku"
-version = "0.1.7"
+version = "0.1.8"
 
 val javaVersion = JavaVersion.VERSION_11
 
@@ -36,7 +36,7 @@ tasks.withType<Test> {
 }
 
 dependencies {
-  implementation(group = "org.apache.kafka", name = "kafka-clients", version = "2.7.1")
+  implementation(group = "org.apache.kafka", name = "kafka-clients", version = "2.8.0")
   implementation(group = "org.codehaus.groovy", name = "groovy-json", version = "3.0.8", classifier = "indy")
   implementation(group = "org.apache.avro", name = "avro", version = "1.9.2")
   implementation(group = "org.apache.karaf.shell", name = "org.apache.karaf.shell.table", version = "4.0.10")
