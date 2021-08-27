@@ -15,7 +15,7 @@ public class DefaultFormatter extends Formatter {
     var buffer = writer.getBuffer();
     var printer = new PrintWriter(writer);
     printer.format("%02d:%02d:%02d.%03d ", time.getHour(), time.getMinute(), time.getSecond(), time.getNano() / 1_000_000);
-    printer.format("[%d] %s ", record.getThreadID(), record.getLoggerName());
+    printer.format("[%d] %s ", getThreadId(record), record.getLoggerName());
     if (record.getParameters() != null && record.getParameters().length > 0) {
       try {
         new MessageFormat(record.getMessage()).format(record.getParameters(), buffer, null);
@@ -30,5 +30,10 @@ public class DefaultFormatter extends Formatter {
       record.getThrown().printStackTrace(printer);
     }
     return buffer.toString();
+  }
+
+  @SuppressWarnings("deprecation")
+  private long getThreadId(LogRecord record) {
+    return record.getThreadID();
   }
 }
