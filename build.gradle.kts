@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.ku"
-version = "0.1.9"
+version = "0.2.0"
 
 val javaVersion = JavaVersion.VERSION_11
 
@@ -59,4 +59,8 @@ application {
 
 tasks.withType<CreateStartScripts> {
   classpath = files("*", "conf")
+}
+
+tasks.named("distTar") {
+  setProperty("archiveFileName", "${project.name}.tar")
 }
