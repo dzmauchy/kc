@@ -4,36 +4,22 @@ import groovy.lang.Closure;
 import groovy.lang.GroovyShell;
 import groovyjarjarpicocli.CommandLine.Option;
 import org.apache.avro.Schema;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.karaf.shell.table.ShellTable;
 import org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper;
-import org.ku.kc.converters.PropertiesConverter;
 import org.ku.kc.format.OutputFormatter;
 import org.ku.kc.groovy.GroovyShellProvider;
 import org.ku.kc.kafka.DecoderKey;
 import org.ku.kc.kafka.Format;
-import org.ku.kc.kafka.KafkaProperties;
 
-import java.rmi.server.UID;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.TreeMap;
 
 public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
-
-  protected static final ByteArrayDeserializer BAD = new ByteArrayDeserializer();
-
-  @Option(
-    names = {"--group"},
-    description = "Kafka consumer group",
-    defaultValue = ""
-  )
-  public String group;
 
   @Option(
     names = {"-f", "--filter"},
@@ -48,14 +34,6 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
     defaultValue = "[t: $r.topic(), p: $r.partition(), o: $r.offset(), k: $k, v: $v]"
   )
   public String projection;
-
-  @Option(
-    names = {"--consumer-properties"},
-    description = "Consumer properties",
-    converter = PropertiesConverter.class,
-    defaultValue = ""
-  )
-  public KafkaProperties consumerProperties;
 
   @Option(
     names = {"-t", "--poll-timeout"},
@@ -119,23 +97,6 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
 
   protected Closure<?> groovyProjection(GroovyShell shell) {
     return (Closure<?>) shell.evaluate("{$r, $k, $v -> $v.with {CODE}}".replace("CODE", projection));
-  }
-
-  protected TreeMap<String, Object> consumerProps() {
-    var props = consumerProperties.getMap();
-    props.computeIfAbsent(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, k -> String.join(",", bootstrapServers));
-    props.computeIfAbsent(ConsumerConfig.CLIENT_ID_CONFIG, k -> new UID().toString());
-    if (transactional) {
-      props.putIfAbsent(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
-    }
-    props.putIfAbsent(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "4096");
-    props.putIfAbsent(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
-    if (group.isBlank()) {
-      props.putIfAbsent(ConsumerConfig.GROUP_ID_CONFIG, new UID().toString());
-    } else {
-      props.putIfAbsent(ConsumerConfig.GROUP_ID_CONFIG, group);
-    }
-    return props;
   }
 
   protected Schema parseSchema(String schema) {
