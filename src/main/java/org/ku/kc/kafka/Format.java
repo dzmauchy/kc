@@ -14,10 +14,19 @@ import java.util.Base64;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public enum Format {
 
+  HEX {
+    @Override
+    public Object decode(byte[] data, EnumMap<DecoderKey, Object> properties) {
+      return IntStream.range(0, data.length)
+        .mapToObj(i -> String.format("%02X", data[i]))
+        .collect(Collectors.joining("", "[" + data.length + "] ", ""));
+    }
+  },
   BYTES {
     @Override
     public Object decode(byte[] data, EnumMap<DecoderKey, Object> properties) {

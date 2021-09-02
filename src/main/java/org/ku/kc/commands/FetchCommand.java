@@ -52,7 +52,11 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
     try (var consumer = new KafkaConsumer<>(consumerProps(), BAD, BAD)) {
       var offs = offsetForTimes(consumer);
       var endOffs = consumer.endOffsets(offs.keySet());
-      offs.keySet().removeIf(tp -> endOffs.getOrDefault(tp, 0L) <= 0L);
+      offs.entrySet().removeIf(e -> {
+        var tp = e.getKey();
+        var o = e.getValue();
+        return endOffs.getOrDefault(tp, 0L) <= 0L || o.offset() >= endOffs.getOrDefault(tp, 0L);
+      });
       if (!quiet) {
         printSubscription(offs, endOffs);
       }
@@ -104,8 +108,6 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
     remoteTimes.forEach((k, v) -> {
       if (v != null) {
         result.put(k, v);
-      } else {
-        logger.warn("No data for {}", k);
       }
     });
     return result;

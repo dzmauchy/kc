@@ -45,7 +45,7 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
   @Option(
     names = {"-p", "--projection"},
     description = "Projection expression",
-    defaultValue = "[k: $k, v: $v]"
+    defaultValue = "[t: $r.topic(), p: $r.partition(), o: $r.offset(), k: $k, v: $v]"
   )
   public String projection;
 
@@ -67,14 +67,14 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
   @Option(
     names = {"-k", "--key-format"},
     description = "Key format",
-    defaultValue = "${env:KC_KEY_FORMAT:-BYTES}"
+    defaultValue = "${env:KC_KEY_FORMAT:-HEX}"
   )
   public Format keyFormat;
 
   @Option(
     names = {"-v", "--value-format"},
     description = "Value format",
-    defaultValue = "${env:KC_VALUE_FORMAT:-BYTES}"
+    defaultValue = "${env:KC_VALUE_FORMAT:-HEX}"
   )
   public Format valueFormat;
 
