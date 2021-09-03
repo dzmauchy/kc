@@ -47,15 +47,17 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
   public List<String> topics;
 
   @Override
-  public Integer call() {
+  public Integer call() throws Exception {
     var state = new FetchState();
     try (var consumer = new KafkaConsumer<>(consumerProps(), BAD, BAD)) {
       var offs = offsetForTimes(consumer);
       var endOffs = consumer.endOffsets(offs.keySet());
+      var beginOffs = consumer.beginningOffsets(offs.keySet());
       offs.entrySet().removeIf(e -> {
         var tp = e.getKey();
         var o = e.getValue();
-        return endOffs.getOrDefault(tp, 0L) <= 0L || o.offset() >= endOffs.getOrDefault(tp, 0L);
+        long eo = endOffs.getOrDefault(tp, 0L);
+        return eo <= beginOffs.getOrDefault(tp, 0L) || o.offset() >= endOffs.getOrDefault(tp, 0L);
       });
       if (!quiet) {
         printSubscription(offs, endOffs);
@@ -65,9 +67,11 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
       consumer.assign(offs.keySet());
       offs.forEach((k, v) -> consumer.seek(k, v.offset()));
       var counter = new LongAdder();
+      startTaskProcessing();
       while (!offs.isEmpty()) {
+        reportErrors();
         var pollResult = consumer.poll(pollTimeout);
-        pollResult.partitions().parallelStream().forEach(tp -> {
+        addTask(() -> pollResult.partitions().parallelStream().forEach(tp -> {
           long endOff = endOffs.getOrDefault(tp, 1L) - 1L;
           var rawRecords = pollResult.records(tp);
           var lastRawRecord = rawRecords.get(rawRecords.size() - 1);
@@ -86,8 +90,10 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
             .map(state.outputFormatter::format)
             .peek(e -> counter.increment())
             .forEachOrdered(out::println);
-        });
+        }));
       }
+      reportErrors();
+      joinTaskProcessing();
       if (!quiet) {
         err.printf("Count: %d%n", counter.sum());
       }

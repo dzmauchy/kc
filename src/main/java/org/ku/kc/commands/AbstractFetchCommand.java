@@ -6,7 +6,6 @@ import groovyjarjarpicocli.CommandLine.Option;
 import org.apache.avro.Schema;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.karaf.shell.table.ShellTable;
 import org.codehaus.groovy.runtime.callsite.BooleanClosureWrapper;
 import org.ku.kc.format.OutputFormatter;
@@ -18,6 +17,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
 
@@ -129,5 +131,61 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
     public final Schema valueSchema = parseSchema(AbstractFetchCommand.this.valueSchema);
     public final EnumMap<DecoderKey, Object> keyDecoderProps = decoderProps(keySchema);
     public final EnumMap<DecoderKey, Object> valueDecoderProps = decoderProps(valueSchema);
+  }
+
+  private final ArrayBlockingQueue<Runnable> taskQueue = new ArrayBlockingQueue<>(2);
+  private final LinkedBlockingQueue<Throwable> exceptions = new LinkedBlockingQueue<>();
+
+  private static final Runnable TERMINATOR = () -> {};
+
+  private final Thread taskThread = new Thread("tasks") {
+    @Override
+    public void run() {
+      while (!isInterrupted()) {
+        try {
+          var task = taskQueue.poll(1L, TimeUnit.SECONDS);
+          if (task == null) {
+            continue;
+          }
+          if (task == TERMINATOR) {
+            break;
+          }
+          try {
+            task.run();
+          } catch (Throwable e) {
+            exceptions.add(e);
+          }
+        } catch (InterruptedException e) {
+          break;
+        }
+      }
+    }
+  };
+
+  protected final void addTask(Runnable task) {
+    taskQueue.add(task);
+  }
+
+  protected final void startTaskProcessing() {
+    taskThread.setDaemon(true);
+    taskThread.start();
+  }
+
+  protected final void joinTaskProcessing() throws InterruptedException {
+    taskQueue.put(TERMINATOR);
+    taskThread.join();
+  }
+
+  protected final void reportErrors() {
+    var it = exceptions.iterator();
+    if (it.hasNext()) {
+      var e = new IllegalStateException("Error");
+      e.addSuppressed(it.next());
+      while (it.hasNext()) {
+        e.addSuppressed(it.next());
+      }
+      taskThread.interrupt();
+      throw e;
+    }
   }
 }

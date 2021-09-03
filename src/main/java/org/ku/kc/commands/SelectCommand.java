@@ -7,9 +7,11 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -18,7 +20,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Collections.singletonList;
-import static java.util.stream.Collectors.toList;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.*;
 
 @Command(
   name = "select",
@@ -64,10 +67,10 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
   private List<Map<TopicPartition, Long>> offsets(KafkaConsumer<?, ?> consumer, TopicPartition tp) {
     var bof = (Function<Collection<TopicPartition>, Map<TopicPartition, Long>>) consumer::beginningOffsets;
     var eof = (Function<Collection<TopicPartition>, Map<TopicPartition, Long>>) consumer::endOffsets;
-    return Stream.of(bof, eof).parallel().map(e -> e.apply(singletonList(tp))).collect(toList());
+    return Stream.of(bof, eof).map(e -> e.apply(singletonList(tp))).collect(toList());
   }
 
-  private ConcurrentMap<String, List<Entry>> parseTpos(KafkaConsumer<?, ?> consumer) {
+  private ConcurrentMap<String, ConcurrentLinkedQueue<Entry>> parseTpos(KafkaConsumer<?, ?> consumer) {
     return tpos.parallelStream()
       .map(s -> s.split(":"))
       .collect(Collectors.groupingByConcurrent(
@@ -104,26 +107,29 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
                     } else {
                       return Stream.of(new Entry(tp.partition(), offset, eo));
                     }
+                  } else {
+                    return Stream.empty();
                   }
                 } else {
                   return Stream.empty();
                 }
               }
-              default: throw formatException(a, null);
+              default: throw formatException(a, new IllegalArgumentException(Integer.toString(a.length)));
             }
           },
-          toList()
+          toCollection(ConcurrentLinkedQueue::new)
         )
       ));
   }
 
   @Override
-  public Integer call() {
+  public Integer call() throws Exception {
     var state = new FetchState();
     try (var consumer = new KafkaConsumer<>(consumerProps(), BAD, BAD)) {
       var counter = new AtomicInteger();
       var tpos = parseTpos(consumer);
       var allTopics = consumer.listTopics();
+      tpos.values().removeIf(ConcurrentLinkedQueue::isEmpty);
       tpos.forEach((t, pos) -> {
         var infos = allTopics.get(t);
         if (infos == null) {
@@ -135,23 +141,31 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
           }
         });
       });
-      var tps = tpos.entrySet().parallelStream()
-        .flatMap(e -> e.getValue().stream().map(v -> new TopicPartition(e.getKey(), v.partition)))
-        .collect(Collectors.toSet());
-      consumer.assign(tps);
+      consumer.assign(
+        tpos.entrySet().parallelStream()
+          .flatMap(e -> e.getValue().stream().map(v -> new TopicPartition(e.getKey(), v.partition)))
+          .collect(toConcurrentMap(identity(), t -> true))
+          .keySet()
+      );
+      tpos.forEach((topic, pos) -> {
+        var sorted = pos.stream().collect(
+          Collectors.groupingBy(
+            e -> e.partition,
+            Collectors.mapping(e -> e.offset, Collectors.toList())
+          )
+        );
+        sorted.forEach((p, os) -> {
+          var minOffset = Collections.min(os);
+          consumer.seek(new TopicPartition(topic, p), minOffset);
+        });
+      });
+      startTaskProcessing();
       while (!tpos.isEmpty()) {
+        reportErrors();
         var pollResult = consumer.poll(pollTimeout);
-        pollResult.partitions().parallelStream().forEach(tp -> {
+        addTask(() -> pollResult.partitions().parallelStream().forEach(tp -> {
           var rawRecords = pollResult.records(tp);
           var lastRawRecord = rawRecords.get(rawRecords.size() - 1);
-          tpos.compute(tp.topic(), (t, old) -> {
-            if (old == null) {
-              return null;
-            } else {
-              old.removeIf(e -> lastRawRecord.offset() >= e.offset || lastRawRecord.offset() >= e.endOffset);
-              return old.isEmpty() ? null : old;
-            }
-          });
           rawRecords.parallelStream()
             .filter(r -> {
               var pos = tpos.get(r.topic());
@@ -174,8 +188,18 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
             .map(e -> state.projection.call(e.getKey()))
             .map(state.outputFormatter::format)
             .forEachOrdered(out::println);
-        });
+          tpos.compute(tp.topic(), (t, old) -> {
+            if (old == null) {
+              return null;
+            } else {
+              old.removeIf(e -> lastRawRecord.offset() >= e.offset || lastRawRecord.offset() >= e.endOffset);
+              return old.isEmpty() ? null : old;
+            }
+          });
+        }));
       }
+      reportErrors();
+      joinTaskProcessing();
       if (!quiet) {
         err.printf("Count: %d%n", counter.get());
       }

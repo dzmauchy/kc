@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -32,7 +33,7 @@ public class SchemaCommand extends AbstractKafkaDataCommand implements Callable<
   public List<String> tpos;
 
   @Override
-  public Integer call() throws Exception {
+  public Integer call() {
     var slurper = new JsonSlurper();
     try (final var consumer = new KafkaConsumer<>(consumerProps(), BAD, BAD)) {
       out.println("[");
@@ -66,7 +67,19 @@ public class SchemaCommand extends AbstractKafkaDataCommand implements Callable<
               } else {
                 out.println(",");
               }
-              out.println(JsonOutput.prettyPrint(schemaText));
+              var map = new LinkedHashMap<String, Object>(4 + json.size() - 1);
+              map.put("topic", record.topic());
+              map.put("partition", record.partition());
+              map.put("offset", record.offset());
+              map.put("id", schemaId);
+              json.forEach((k, v) -> {
+                var ks = k.toString();
+                if (!"schema".equals(ks)) {
+                  map.put(ks, v);
+                }
+              });
+              map.put("schema", slurper.parse(schemaText.toCharArray()));
+              out.println(JsonOutput.prettyPrint(JsonOutput.toJson(map)));
             }
           } catch (IOException e) {
             throw new UncheckedIOException("Unable to decode schema for id = " + schemaId, e);
