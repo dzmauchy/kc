@@ -127,6 +127,7 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
     var state = new FetchState();
     try (var consumer = new KafkaConsumer<>(consumerProps(), BAD, BAD)) {
       var counter = new AtomicInteger();
+      var mCounter = new AtomicInteger();
       var tpos = parseTpos(consumer);
       var allTopics = consumer.listTopics();
       tpos.values().removeIf(ConcurrentLinkedQueue::isEmpty);
@@ -167,14 +168,6 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
           var rawRecords = pollResult.records(tp);
           var lastRawRecord = rawRecords.get(rawRecords.size() - 1);
           rawRecords.parallelStream()
-            .filter(r -> {
-              var pos = tpos.get(r.topic());
-              if (pos == null) {
-                return false;
-              } else {
-                return pos.stream().anyMatch(e -> r.offset() >= e.offset && r.offset() <= e.endOffset);
-              }
-            })
             .map(r -> {
               var a = new Object[]{
                 r,
@@ -184,9 +177,10 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
               return Map.entry(a, r);
             })
             .filter(e -> state.filter.call(e.getKey()))
-            .filter(e -> counter.getAndIncrement() <= count)
+            .filter(e -> mCounter.incrementAndGet() <= count)
             .map(e -> state.projection.call(e.getKey()))
             .map(state.outputFormatter::format)
+            .peek(e -> counter.incrementAndGet())
             .forEachOrdered(out::println);
           tpos.compute(tp.topic(), (t, old) -> {
             if (old == null) {
