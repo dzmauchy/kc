@@ -162,8 +162,8 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
     }
   };
 
-  protected final void addTask(Runnable task) {
-    taskQueue.add(task);
+  protected final void addTask(Runnable task) throws InterruptedException {
+    taskQueue.put(task);
   }
 
   protected final void startTaskProcessing() {
