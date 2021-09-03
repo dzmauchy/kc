@@ -39,7 +39,7 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
 
   @Option(
     names = {"-c"},
-    description = "Message count",
+    description = "Message count per partition",
     defaultValue = "1"
   )
   public long count;
@@ -160,40 +160,40 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
           consumer.seek(new TopicPartition(topic, p), minOffset);
         });
       });
-      startTaskProcessing();
-      while (!tpos.isEmpty()) {
-        reportErrors();
-        var pollResult = consumer.poll(pollTimeout);
-        addTask(() -> pollResult.partitions().forEach(tp -> {
-          var rawRecords = pollResult.records(tp);
-          var lastRawRecord = rawRecords.get(rawRecords.size() - 1);
-          rawRecords.stream()
-            .map(r -> {
-              var a = new Object[]{
-                r,
-                keyFormat.decode(r.key(), state.keyDecoderProps),
-                valueFormat.decode(r.value(), state.valueDecoderProps)
-              };
-              return Map.entry(a, r);
-            })
-            .filter(e -> state.filter.call(e.getKey()))
-            .filter(e -> mCounter.incrementAndGet() <= count)
-            .map(e -> state.projection.call(e.getKey()))
-            .map(state.outputFormatter::format)
-            .peek(e -> counter.incrementAndGet())
-            .forEachOrdered(out::println);
-          tpos.compute(tp.topic(), (t, old) -> {
-            if (old == null) {
-              return null;
-            } else {
-              old.removeIf(e -> lastRawRecord.offset() >= e.offset || lastRawRecord.offset() >= e.endOffset);
-              return old.isEmpty() ? null : old;
-            }
-          });
-        }));
-      }
-      reportErrors();
-      joinTaskProcessing();
+      runTasks((filter, taskAdder) -> {
+        while (!tpos.isEmpty()) {
+          reportErrors();
+          var pollResult = consumer.poll(pollTimeout);
+          taskAdder.addTask(() -> pollResult.partitions().forEach(tp -> {
+            var rawRecords = pollResult.records(tp);
+            var lastRawRecord = rawRecords.get(rawRecords.size() - 1);
+            rawRecords.stream()
+              .map(r -> {
+                var a = new Object[]{
+                  r,
+                  keyFormat.decode(r.key(), state.keyDecoderProps),
+                  valueFormat.decode(r.value(), state.valueDecoderProps)
+                };
+                return Map.entry(a, r);
+              })
+              .filter(e -> state.filter.call(e.getKey()))
+              .filter(e -> mCounter.incrementAndGet() <= count)
+              .filter(e -> filter.getAsBoolean())
+              .map(e -> state.projection.call(e.getKey()))
+              .map(state.outputFormatter::format)
+              .peek(e -> counter.incrementAndGet())
+              .forEachOrdered(out::println);
+            tpos.compute(tp.topic(), (t, old) -> {
+              if (old == null) {
+                return null;
+              } else {
+                old.removeIf(e -> lastRawRecord.offset() >= e.offset || lastRawRecord.offset() >= e.endOffset);
+                return old.isEmpty() ? null : old;
+              }
+            });
+          }));
+        }
+      });
       if (!quiet) {
         err.printf("Count: %d%n", counter.get());
       }

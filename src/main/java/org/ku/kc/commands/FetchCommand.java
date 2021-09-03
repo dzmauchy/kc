@@ -67,33 +67,33 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
       consumer.assign(offs.keySet());
       offs.forEach((k, v) -> consumer.seek(k, v.offset()));
       var counter = new LongAdder();
-      startTaskProcessing();
-      while (!offs.isEmpty()) {
-        reportErrors();
-        var pollResult = consumer.poll(pollTimeout);
-        addTask(() -> pollResult.partitions().parallelStream().forEach(tp -> {
-          long endOff = endOffs.getOrDefault(tp, 1L) - 1L;
-          var rawRecords = pollResult.records(tp);
-          var lastRawRecord = rawRecords.get(rawRecords.size() - 1);
-          if (lastRawRecord.offset() >= endOff || lastRawRecord.timestamp() >= toMillis) {
-            offs.remove(tp);
-          }
-          rawRecords.parallelStream()
-            .filter(r -> r.timestamp() >= fromMillis && r.timestamp() < toMillis)
-            .map(r -> new Object[]{
-              r,
-              keyFormat.decode(r.key(), state.keyDecoderProps),
-              valueFormat.decode(r.value(), state.valueDecoderProps)
-            })
-            .filter(state.filter::call)
-            .map(state.projection::call)
-            .map(state.outputFormatter::format)
-            .peek(e -> counter.increment())
-            .forEachOrdered(out::println);
-        }));
-      }
-      reportErrors();
-      joinTaskProcessing();
+      runTasks((filter, taskAdder) -> {
+        while (!offs.isEmpty()) {
+          reportErrors();
+          var pollResult = consumer.poll(pollTimeout);
+          taskAdder.addTask(() -> pollResult.partitions().parallelStream().forEach(tp -> {
+            long endOff = endOffs.getOrDefault(tp, 1L) - 1L;
+            var rawRecords = pollResult.records(tp);
+            var lastRawRecord = rawRecords.get(rawRecords.size() - 1);
+            if (lastRawRecord.offset() >= endOff || lastRawRecord.timestamp() >= toMillis) {
+              offs.remove(tp);
+            }
+            rawRecords.parallelStream()
+              .filter(r -> r.timestamp() >= fromMillis && r.timestamp() < toMillis)
+              .map(r -> new Object[]{
+                r,
+                keyFormat.decode(r.key(), state.keyDecoderProps),
+                valueFormat.decode(r.value(), state.valueDecoderProps)
+              })
+              .filter(state.filter::call)
+              .filter(e -> filter.getAsBoolean())
+              .map(state.projection::call)
+              .map(state.outputFormatter::format)
+              .peek(e -> counter.increment())
+              .forEachOrdered(out::println);
+          }));
+        }
+      });
       if (!quiet) {
         err.printf("Count: %d%n", counter.sum());
       }

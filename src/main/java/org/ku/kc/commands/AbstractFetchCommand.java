@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 
 public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
 
@@ -72,6 +74,13 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
   )
   public String valueSchema;
 
+  @Option(
+    names = {"-n", "--message-count"},
+    description = "Message count limit",
+    defaultValue = "9223372036854775807"
+  )
+  public long messageCount;
+
   protected void printSubscription(Map<TopicPartition, OffsetAndTimestamp> offs, Map<TopicPartition, Long> endOffs) {
     var table = new ShellTable();
     table.column("Topic").alignLeft();
@@ -79,15 +88,13 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
     table.column("Offset").alignRight();
     table.column("Timestamp").alignCenter();
     table.column("End offset").alignRight();
-    offs.forEach((tp, omd) -> {
-      table.addRow().addContent(
-        tp.topic(),
-        tp.partition(),
-        omd.offset(),
-        Instant.ofEpochMilli(omd.timestamp()),
-        endOffs.getOrDefault(tp, -1L)
-      );
-    });
+    offs.forEach((tp, omd) -> table.addRow().addContent(
+      tp.topic(),
+      tp.partition(),
+      omd.offset(),
+      Instant.ofEpochMilli(omd.timestamp()),
+      endOffs.getOrDefault(tp, -1L)
+    ));
     table.print(err);
   }
 
@@ -162,18 +169,29 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
     }
   };
 
-  protected final void addTask(Runnable task) throws InterruptedException {
-    taskQueue.put(task);
+  protected interface TaskHandler {
+    void doTasks(BooleanSupplier filter, TaskAdder taskAdder) throws InterruptedException;
   }
 
-  protected final void startTaskProcessing() {
+  protected interface TaskAdder {
+    void addTask(Runnable task) throws InterruptedException;
+  }
+
+  protected void runTasks(TaskHandler taskHandler) throws InterruptedException {
+    var counter = new AtomicLong();
+    var filter = (BooleanSupplier) () -> counter.incrementAndGet() <= messageCount;
+    var taskAdder = (TaskAdder) taskQueue::put;
     taskThread.setDaemon(true);
     taskThread.start();
-  }
-
-  protected final void joinTaskProcessing() throws InterruptedException {
-    taskQueue.put(TERMINATOR);
-    taskThread.join();
+    try {
+      taskHandler.doTasks(filter, taskAdder);
+      taskQueue.put(TERMINATOR);
+      taskThread.join();
+      reportErrors();
+    } catch (Throwable e) {
+      taskThread.interrupt();
+      throw e;
+    }
   }
 
   protected final void reportErrors() {
