@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.ku"
-version = "0.2.6"
+version = "0.2.7"
 
 val javaVersion = JavaVersion.VERSION_11
 

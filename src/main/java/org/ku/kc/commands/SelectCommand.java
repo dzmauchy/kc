@@ -164,10 +164,10 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
       while (!tpos.isEmpty()) {
         reportErrors();
         var pollResult = consumer.poll(pollTimeout);
-        addTask(() -> pollResult.partitions().parallelStream().forEach(tp -> {
+        addTask(() -> pollResult.partitions().forEach(tp -> {
           var rawRecords = pollResult.records(tp);
           var lastRawRecord = rawRecords.get(rawRecords.size() - 1);
-          rawRecords.parallelStream()
+          rawRecords.stream()
             .map(r -> {
               var a = new Object[]{
                 r,
