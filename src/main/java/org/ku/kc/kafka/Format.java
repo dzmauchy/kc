@@ -22,7 +22,7 @@ public enum Format {
   HEX {
     @Override
     public Object decode(byte[] data, EnumMap<DecoderKey, Object> properties) {
-      return IntStream.range(0, data.length)
+      return data == null ? "[0] null" : IntStream.range(0, data.length)
         .mapToObj(i -> String.format("%02X", data[i]))
         .collect(Collectors.joining("", "[" + data.length + "] ", ""));
     }
@@ -36,7 +36,7 @@ public enum Format {
   BASE64 {
     @Override
     public Object decode(byte[] data, EnumMap<DecoderKey, Object> properties) {
-      return data == null ? "" : "[" + data.length + "] " + Base64.getEncoder().encodeToString(data);
+      return data == null ? "[0] null" : "[" + data.length + "] " + Base64.getEncoder().encodeToString(data);
     }
   },
   STRING {
