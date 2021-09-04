@@ -25,11 +25,17 @@ Kafka Console (kc)
       - __[--key-schema= Key schema (-k=AVRO only)](#--key-schema-key-schema--kavro-only)__
       - __[--value-schema= Value schema (-v=AVRO only)](#--value-schema-value-schema--vavro-only)__
       - __[-n= Message count limit](#-n-message-count-limit)__
-    - __[For all commands dealing with Kafka Admin Client.](#for-all-commands-dealing-with-kafka-admin-client)__
+    - __[For all commands dealing with Kafka Admin Client](#for-all-commands-dealing-with-kafka-admin-client)__
       - __[--client-properties= Client properties](#--client-properties-client-properties)__
       - __[--timeout= Client query timeout](#--timeout-client-query-timeout)__
       - __[-p Pretty print flag](#-p-pretty-print-flag)__
-  - __[topics (t)](#topics-t)__
+  - __[Topics (t)](#topics-t)__
+    - __[Parameters](#parameters)__
+    - __[--list-internal Include internal topics flag](#--list-internal-include-internal-topics-flag)__
+  - __[Fetch (f)](#fetch-f)__
+  - __[Select (s)](#select-s)__
+  - __[Consumer groups (g)](#consumer-groups-g)__
+  - __[Fetch AVRO schema (S)](#fetch-avro-schema-s)__
 <!-- /toc -->
 
 # Summary
@@ -137,7 +143,7 @@ Value schema. Default: SCHEMA_REGISTRY.
 
 Message count limit. Default: 9223372036854775807.
 
-### For all commands dealing with Kafka Admin Client.
+### For all commands dealing with Kafka Admin Client
 
 #### --client-properties= Client properties
 
@@ -153,4 +159,20 @@ See [ISO duration format](https://www.digi.com/resources/documentation/digidocs/
 
 If specified, prettifies the output JSON.
 
-## topics (t)
+## Topics (t)
+
+### Parameters
+
+Topic patterns (regex expressions: see [Regexp](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/regex/Pattern.html))
+
+### --list-internal Include internal topics flag
+
+If specified, internal topics will be included too.
+
+## Fetch (f)
+
+## Select (s)
+
+## Consumer groups (g)
+
+## Fetch AVRO schema (S)
