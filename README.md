@@ -1,5 +1,31 @@
 Kafka Console (kc)
 ------------------
+
+- [Summary](#summary)
+- [Downloads](#downloads)
+- [Distribution](#distribution)
+- [Requirements](#requirements)
+- [Commands](#commands)
+  * [Common parameters](#common-parameters)
+    + [For all commands](#for-all-commands)
+      - [--quiet](#--quiet)
+    + [For all commands accessing Kafka](#for-all-commands-accessing-kafka)
+      - [--bootstrap-servers=\<Kafka bootstrap server list>](#--bootstrap-servers---kafka-bootstrap-server-list-)
+    + [For all commands reading Kafka topics](#for-all-commands-reading-kafka-topics)
+      - [--schema-registry=\<AVRO schema registry url>](#--schema-registry---avro-schema-registry-url-)
+    + [For all commands fetching data](#for-all-commands-fetching-data)
+      - [-f=\<filter expression>, --filter=\<filter expression>](#-f---filter-expression-----filter---filter-expression-)
+      - [-p=\<projection expression>, --projection=\<projection expression>](#-p---projection-expression-----projection---projection-expression-)
+      - [-t=\<poll timeout>](#-t---poll-timeout-)
+      - [-k=\<key format>](#-k---key-format-)
+      - [-v=\<value format>](#-v---value-format-)
+      - [--key-schema=\<key schema>](#--key-schema---key-schema-)
+      - [--value-schema=\<value schema>](#--value-schema---value-schema-)
+      - [-n=<message count>](#-n--message-count-)
+  * [topics (t)](#topics--t-)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+
 # Summary
 
 Kafka Console is a command-line utility to make some **read-only** operations:
