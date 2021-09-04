@@ -37,6 +37,7 @@ Kafka Console (kc)
   - __[Consumer groups (g)](#consumer-groups-g)__
   - __[Fetch AVRO schema (S)](#fetch-avro-schema-s)__
 - __[Formats (to use with -k and -v options)](#formats-to-use-with--k-and--v-options)__
+- __[Time instants](#time-instants)__
 <!-- /toc -->
 
 # Summary
