@@ -1,6 +1,7 @@
 plugins {
   java
   application
+  id("com.github.blueboxware.tocme").version("1.3")
 }
 
 group = "org.ku"
@@ -63,4 +64,10 @@ tasks.withType<CreateStartScripts> {
 
 tasks.named("distTar") {
   setProperty("archiveFileName", "${project.name}.tar")
+}
+
+tocme {
+  doc("README.md") {
+    levels = levels("1-5")
+  }
 }

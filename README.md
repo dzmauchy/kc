@@ -1,34 +1,36 @@
 Kafka Console (kc)
 ------------------
 
-- [Summary](#summary)
-- [Downloads](#downloads)
-- [Distribution](#distribution)
-- [Requirements](#requirements)
-- [Commands](#commands)
-  * [Common parameters](#common-parameters)
-    + [For all commands](#for-all-commands)
-      - [--quiet Quiet output flag](#--quiet-quiet-output-flag)
-    + [For all commands accessing Kafka](#for-all-commands-accessing-kafka)
-      - [--bootstrap-servers=\<Kafka bootstrap server list> Kafka bootstrap servers](#--bootstrap-servers---kafka-bootstrap-server-list--kafka-bootstrap-servers)
-    + [For all commands reading Kafka topics](#for-all-commands-reading-kafka-topics)
-      - [--schema-registry=\<AVRO schema registry url> Schema Registry URL](#--schema-registry---avro-schema-registry-url--schema-registry-url)
-    + [For all commands fetching data](#for-all-commands-fetching-data)
-      - [-f=\<filter expression>, --filter=\<filter expression> Filter expression](#-f---filter-expression-----filter---filter-expression--filter-expression)
-      - [-p=\<projection expression>, --projection=\<projection expression> Projection expression](#-p---projection-expression-----projection---projection-expression--projection-expression)
-      - [-t=\<poll timeout> Kafka poll timeout.](#-t---poll-timeout--kafka-poll-timeout)
-      - [-k=\<key format> Key format](#-k---key-format--key-format)
-      - [-v=\<value format> Value format](#-v---value-format--value-format)
-      - [--key-schema=\<key schema> (-k=AVRO only)](#--key-schema---key-schema----k-avro-only-)
-      - [--value-schema=\<value schema> Value schema (-v=AVRO only)](#--value-schema---value-schema--value-schema---v-avro-only-)
-      - [-n=\<message count> Message count limit](#-n---message-count--message-count-limit)
-    + [For all commands dealing with Kafka Admin Client.](#for-all-commands-dealing-with-kafka-admin-client)
-      - [--client-properties=\<client properties> Client properties](#--client-properties---client-properties--client-properties)
-      - [--timeout=\<timeout> Client query timeout](#--timeout---timeout--client-query-timeout)
-      - [-p Pretty print flag](#-p-pretty-print-flag)
-  * [topics (t)](#topics--t-)
+# Table of Contents
 
-<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+<!-- toc -->
+- __[Summary](#summary)__
+- __[Downloads](#downloads)__
+- __[Distribution](#distribution)__
+- __[Requirements](#requirements)__
+- __[Commands](#commands)__
+  - __[Common parameters](#common-parameters)__
+    - __[For all commands](#for-all-commands)__
+      - __[--quiet Quiet output flag](#--quiet-quiet-output-flag)__
+    - __[For all commands accessing Kafka](#for-all-commands-accessing-kafka)__
+      - __[--bootstrap-servers=<Kafka bootstrap server list> Kafka bootstrap servers](#--bootstrap-serverskafka-bootstrap-server-list-kafka-bootstrap-servers)__
+    - __[For all commands reading Kafka topics](#for-all-commands-reading-kafka-topics)__
+      - __[--schema-registry=<AVRO schema registry url> Schema Registry URL](#--schema-registryavro-schema-registry-url-schema-registry-url)__
+    - __[For all commands fetching data](#for-all-commands-fetching-data)__
+      - __[-f=<filter expression>, --filter=<filter expression> Filter expression](#-ffilter-expression---filterfilter-expression-filter-expression)__
+      - __[-p=<projection expression>, --projection=<projection expression> Projection expression](#-pprojection-expression---projectionprojection-expression-projection-expression)__
+      - __[-t=<poll timeout> Kafka poll timeout.](#-tpoll-timeout-kafka-poll-timeout)__
+      - __[-k=<key format> Key format](#-kkey-format-key-format)__
+      - __[-v=<value format> Value format](#-vvalue-format-value-format)__
+      - __[--key-schema=<key schema> (-k=AVRO only)](#--key-schemakey-schema--kavro-only)__
+      - __[--value-schema=<value schema> Value schema (-v=AVRO only)](#--value-schemavalue-schema-value-schema--vavro-only)__
+      - __[-n=<message count> Message count limit](#-nmessage-count-message-count-limit)__
+    - __[For all commands dealing with Kafka Admin Client.](#for-all-commands-dealing-with-kafka-admin-client)__
+      - __[--client-properties=<client properties> Client properties](#--client-propertiesclient-properties-client-properties)__
+      - __[--timeout=<timeout> Client query timeout](#--timeouttimeout-client-query-timeout)__
+      - __[-p Pretty print flag](#-p-pretty-print-flag)__
+  - __[topics (t)](#topics-t)__
+<!-- /toc -->
 
 # Summary
 
