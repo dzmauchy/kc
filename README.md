@@ -176,3 +176,18 @@ If specified, internal topics will be included too.
 ## Consumer groups (g)
 
 ## Fetch AVRO schema (S)
+
+# Output formats
+
+Name | Description |
+-----| ------------|
+HEX  | Hex format: (\<count> \<hex dump>)
+BASE64| Base64 dump
+BYTES| Raw bytes
+STRING| UTF-8 encoded string
+JSON| JSON document
+LONG| 64-bit integer
+INT|32-bit integer
+FLOAT|32-bit floating point number
+DOUBLE|64-bit floating point number
+AVRO|AVRO-encoded message
