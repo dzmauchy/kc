@@ -9,11 +9,11 @@ import org.apache.kafka.clients.admin.ListTopicsOptions;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.karaf.shell.table.ShellTable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
@@ -59,11 +59,17 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
         for (var topic : topics.keySet()) {
           var description = descriptions.get(topic);
           if (description != null) {
+            var ops = Stream.ofNullable(description.authorizedOperations())
+              .flatMap(Set::stream)
+              .map(AclOperation::code)
+              .map(Object::toString)
+              .sorted()
+              .collect(joining(","));
             table.addRow().addContent(
               description.name(),
               description.partitions().size(),
               description.partitions().stream().mapToInt(r -> r.replicas().size()).max().orElse(0),
-              description.authorizedOperations().stream().map(AclOperation::code).map(Object::toString).collect(joining(","))
+              ops
             );
           }
         }
@@ -73,12 +79,21 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
       for (var topic : topics.keySet()) {
         var description = descriptions.get(topic);
         if (description != null) {
+          var ops = Stream.ofNullable(description.authorizedOperations())
+            .flatMap(Set::stream)
+            .map(o -> {
+              var m = new LinkedHashMap<String, Object>();
+              m.put("code", Byte.toUnsignedInt(o.code()));
+              m.put("name", o.name());
+              return m;
+            })
+            .collect(Collectors.toList());
           list.add(
             Map.of(
               "topic", description.name(),
               "partitions", description.partitions().size(),
               "replicas", description.partitions().stream().mapToInt(r -> r.replicas().size()).max().orElse(0),
-              "operations", description.authorizedOperations().stream().mapToInt(AclOperation::code).toArray()
+              "operations", ops
             )
           );
         }
