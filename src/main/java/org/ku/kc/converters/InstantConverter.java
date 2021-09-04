@@ -14,6 +14,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
 
 public class InstantConverter implements CommandLine.ITypeConverter<Instant> {
 
+  //@formatter:off
   private static final DateTimeFormatter FORMATTER = new DateTimeFormatterBuilder()
     .optionalStart()
       .appendValue(ChronoField.YEAR, 4)
@@ -57,6 +58,7 @@ public class InstantConverter implements CommandLine.ITypeConverter<Instant> {
       .appendLiteral('T')
     .optionalEnd()
     .toFormatter();
+//@formatter:on
 
   @Override
   public Instant convert(String s) {
