@@ -77,8 +77,26 @@ A groovy expression to map the filtered records to an appropriate structure.
 
 Poll timeout.
 Default value is PT5S (5s).
-See https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm
+See [ISO duration format](https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm)
 
-#### 
+#### -k=\<key format>
+
+Key format. Default: HEX.
+
+#### -v=\<value format>
+
+Value format. Default: HEX.
+
+#### --key-schema=\<key schema>
+
+Key schema. Default: SCHEMA_REGISTRY.
+
+#### --value-schema=\<value schema>
+
+Value schema. Default: SCHEMA_REGISTRY.
+
+#### -n=<message count>
+
+Message count limit. Default: 9223372036854775807.
 
 ## topics (t)
