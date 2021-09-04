@@ -11,6 +11,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 
 @Command(
@@ -25,7 +26,7 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
   @Parameters(
     description = "topic:partition[:offset[:count]] pairs"
   )
-  public List<String> tpos;
+  public List<String> tpos = emptyList();
 
   @Option(
     names = {"-c"},

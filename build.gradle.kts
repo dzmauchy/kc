@@ -1,3 +1,5 @@
+import java.time.LocalDate
+
 plugins {
   java
   application
@@ -5,7 +7,7 @@ plugins {
 }
 
 group = "org.ku"
-version = "0.3.0"
+version = "0.3.1"
 
 val javaVersion = JavaVersion.VERSION_11
 
@@ -64,6 +66,18 @@ tasks.withType<CreateStartScripts> {
 
 tasks.named("distTar") {
   setProperty("archiveFileName", "${project.name}.tar")
+}
+
+tasks.named<ProcessResources>("processResources") {
+  filesMatching("**/*.properties") {
+    filter(
+      org.apache.tools.ant.filters.ReplaceTokens::class,
+      "tokens" to mapOf(
+        "project.version" to project.version,
+        "year" to LocalDate.now().year.toString()
+      )
+    )
+  }
 }
 
 tocme {

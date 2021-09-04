@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListMap;
 
+import static java.util.Collections.emptyList;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.*;
 
@@ -33,7 +34,7 @@ public class OffsetsCommand extends AbstractAdminClientCommand implements Callab
   @Parameters(
     description = "Input topics"
   )
-  public List<String> topics;
+  public List<String> topics = emptyList();
 
   @Override
   public Integer call() throws Exception {

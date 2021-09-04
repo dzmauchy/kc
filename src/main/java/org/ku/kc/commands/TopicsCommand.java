@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Collections.emptyList;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toConcurrentMap;
@@ -31,7 +32,7 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
   @Parameters(
     description = "Topic patterns"
   )
-  public List<String> topics;
+  public List<String> topics = emptyList();
 
   @Option(
     names = {"--list-internal"},

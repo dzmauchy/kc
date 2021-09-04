@@ -12,8 +12,10 @@ import org.apache.karaf.shell.table.ShellTable;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static groovyjarjarpicocli.CommandLine.Help.Visibility.ALWAYS;
+import static java.util.Collections.emptyList;
 
 @Command(
   name = "groups",
@@ -34,7 +36,7 @@ public class ConsumerGroupsCommand extends AbstractAdminClientCommand implements
   @Parameters(
     description = "Groups"
   )
-  public List<String> groups;
+  public List<String> groups = emptyList();
 
   @Override
   public Integer call() throws Exception {
@@ -61,7 +63,8 @@ public class ConsumerGroupsCommand extends AbstractAdminClientCommand implements
       }
       var map = new TreeMap<String, LinkedHashMap<String, Object>>();
       r.forEach((group, description) -> {
-        var ops = description.authorizedOperations().stream()
+        var ops = Stream.ofNullable(description.authorizedOperations())
+          .flatMap(Set::stream)
           .sorted(Comparator.comparingInt(e -> Byte.toUnsignedInt(e.code())))
           .map(o -> Map.of("code", Byte.toUnsignedInt(o.code()), "op", o.name()))
           .collect(Collectors.toList());

@@ -16,6 +16,8 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.emptyList;
+
 @Command(
   name = "fetch",
   aliases = {"f"},
@@ -44,7 +46,7 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
   @Parameters(
     description = "Input topics"
   )
-  public List<String> topics;
+  public List<String> topics = emptyList();
 
   @Override
   public Integer call() throws Exception {

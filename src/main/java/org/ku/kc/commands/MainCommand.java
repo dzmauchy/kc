@@ -2,13 +2,16 @@ package org.ku.kc.commands;
 
 import groovyjarjarpicocli.CommandLine;
 import groovyjarjarpicocli.CommandLine.Command;
-import org.ku.kc.version.KcVersionProvider;
 
 import java.util.concurrent.Callable;
 
 @Command(
   description = "Kafka command-line utility",
-  versionProvider = KcVersionProvider.class,
+  footer = {
+    "-----------------------------------------------------------",
+    "Kafka Command Line on JVM ${java.version} (${java.vendor})"
+  },
+  mixinStandardHelpOptions = true,
   subcommands = {
     FetchCommand.class,
     SelectCommand.class,
@@ -19,6 +22,7 @@ import java.util.concurrent.Callable;
   }
 )
 public class MainCommand implements Callable<Integer> {
+
   @Override
   public Integer call() {
     CommandLine.usage(this, System.out);

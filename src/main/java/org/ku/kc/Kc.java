@@ -3,6 +3,7 @@ package org.ku.kc;
 import groovyjarjarpicocli.CommandLine;
 import org.ku.kc.commands.MainCommand;
 import org.ku.kc.logging.DefaultFormatter;
+import org.ku.kc.version.KcVersionProvider;
 
 import java.util.logging.FileHandler;
 import java.util.logging.LogManager;
@@ -13,6 +14,7 @@ public class Kc {
   public static void main(String... args) throws Exception {
     initLogging();
     var commandLine = new CommandLine(new MainCommand());
+    commandLine.getCommandSpec().versionProvider(new KcVersionProvider());
     int code = commandLine.execute(args);
     System.exit(code);
   }

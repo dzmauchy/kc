@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 
 @Command(
@@ -30,7 +31,7 @@ public class SchemaCommand extends AbstractKafkaDataCommand implements Callable<
   @Parameters(
     description = "Input topic:partition:offset pairs"
   )
-  public List<String> tpos;
+  public List<String> tpos = emptyList();
 
   @Override
   public Integer call() {
