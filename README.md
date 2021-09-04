@@ -63,7 +63,7 @@ A groovy expression to filter incoming records.
 
 |Default|Value|
 |-|-|
-|1st default|true|
+|1st default|```true```|
 
 #### -p=\<projection expression>, --projection=\<projection expression>
 
@@ -71,7 +71,13 @@ A groovy expression to map the filtered records to an appropriate structure.
 
 |Default|Value|
 |-|-|
-|1st default|```[k: $k, v: $v]```|
+|1st default|```[t: $r.topic(), p: $r.partition(), o: $r.offset(), k: $k, v: $v]```|
+
+#### -t=\<poll timeout>
+
+Poll timeout.
+Default value is PT5S (5s).
+See https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm
 
 #### 
 
