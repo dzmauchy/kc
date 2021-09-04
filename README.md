@@ -112,7 +112,8 @@ A groovy expression to map the filtered records to an appropriate structure.
 
 Poll timeout.
 Default value is PT5S (5s).
-<p>See [ISO duration format](https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm)</p>
+
+See [ISO duration format](https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm)
 
 #### -k=\<key format> Key format
 
@@ -143,7 +144,8 @@ All properties are defined as a list of key-value pairs separated by ,, (two com
 #### --timeout=\<timeout> Client query timeout
 
 Client query timeout. Default: PT5M.
-<p>See [ISO duration format](https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm)</p>
+
+See [ISO duration format](https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm)
 
 #### -p Pretty print flag
 
