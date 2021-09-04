@@ -13,21 +13,21 @@ Kafka Console (kc)
     - __[For all commands](#for-all-commands)__
       - __[--quiet Quiet output flag](#--quiet-quiet-output-flag)__
     - __[For all commands accessing Kafka](#for-all-commands-accessing-kafka)__
-      - __[--bootstrap-servers=<Kafka bootstrap server list> Kafka bootstrap servers](#--bootstrap-serverskafka-bootstrap-server-list-kafka-bootstrap-servers)__
+      - __[--bootstrap-servers= Kafka bootstrap servers](#--bootstrap-servers-kafka-bootstrap-servers)__
     - __[For all commands reading Kafka topics](#for-all-commands-reading-kafka-topics)__
-      - __[--schema-registry=<AVRO schema registry url> Schema Registry URL](#--schema-registryavro-schema-registry-url-schema-registry-url)__
+      - __[--schema-registry= Schema Registry URL](#--schema-registry-schema-registry-url)__
     - __[For all commands fetching data](#for-all-commands-fetching-data)__
-      - __[-f=<filter expression>, --filter=<filter expression> Filter expression](#-ffilter-expression---filterfilter-expression-filter-expression)__
-      - __[-p=<projection expression>, --projection=<projection expression> Projection expression](#-pprojection-expression---projectionprojection-expression-projection-expression)__
-      - __[-t=<poll timeout> Kafka poll timeout.](#-tpoll-timeout-kafka-poll-timeout)__
-      - __[-k=<key format> Key format](#-kkey-format-key-format)__
-      - __[-v=<value format> Value format](#-vvalue-format-value-format)__
-      - __[--key-schema=<key schema> (-k=AVRO only)](#--key-schemakey-schema--kavro-only)__
-      - __[--value-schema=<value schema> Value schema (-v=AVRO only)](#--value-schemavalue-schema-value-schema--vavro-only)__
-      - __[-n=<message count> Message count limit](#-nmessage-count-message-count-limit)__
+      - __[-f=, --filter= Filter expression](#-f---filter-filter-expression)__
+      - __[-p=, --projection= Projection expression](#-p---projection-projection-expression)__
+      - __[-t= Kafka poll timeout.](#-t-kafka-poll-timeout)__
+      - __[-k= Key format](#-k-key-format)__
+      - __[-v= Value format](#-v-value-format)__
+      - __[--key-schema= Key schema (-k=AVRO only)](#--key-schema-key-schema--kavro-only)__
+      - __[--value-schema= Value schema (-v=AVRO only)](#--value-schema-value-schema--vavro-only)__
+      - __[-n= Message count limit](#-n-message-count-limit)__
     - __[For all commands dealing with Kafka Admin Client.](#for-all-commands-dealing-with-kafka-admin-client)__
-      - __[--client-properties=<client properties> Client properties](#--client-propertiesclient-properties-client-properties)__
-      - __[--timeout=<timeout> Client query timeout](#--timeouttimeout-client-query-timeout)__
+      - __[--client-properties= Client properties](#--client-properties-client-properties)__
+      - __[--timeout= Client query timeout](#--timeout-client-query-timeout)__
       - __[-p Pretty print flag](#-p-pretty-print-flag)__
   - __[topics (t)](#topics-t)__
 <!-- /toc -->
@@ -76,7 +76,7 @@ If specified, disables additional output to stderr.
 
 ### For all commands accessing Kafka
 
-#### --bootstrap-servers=\<Kafka bootstrap server list> Kafka bootstrap servers
+#### --bootstrap-servers= Kafka bootstrap servers
 Comma-separated list of the Kafka bootstrap servers.
 |Default|Value|
 |-|-|
@@ -85,7 +85,7 @@ Comma-separated list of the Kafka bootstrap servers.
 
 ### For all commands reading Kafka topics
 
-#### --schema-registry=\<AVRO schema registry url> Schema Registry URL
+#### --schema-registry= Schema Registry URL
 AVRO schema registry url with slash at the end, e.g. ```http://my-server.com/```
 |Default|Value|
 |-|-|
@@ -94,7 +94,7 @@ AVRO schema registry url with slash at the end, e.g. ```http://my-server.com/```
 
 ### For all commands fetching data
 
-#### -f=\<filter expression>, --filter=\<filter expression> Filter expression
+#### -f=, --filter= Filter expression
 
 A groovy expression to filter incoming records.
 
@@ -102,7 +102,7 @@ A groovy expression to filter incoming records.
 |-|-|
 |1st default|```true```|
 
-#### -p=\<projection expression>, --projection=\<projection expression> Projection expression
+#### -p=, --projection= Projection expression
 
 A groovy expression to map the filtered records to an appropriate structure.
 
@@ -110,40 +110,40 @@ A groovy expression to map the filtered records to an appropriate structure.
 |-|-|
 |1st default|```[t: $r.topic(), p: $r.partition(), o: $r.offset(), k: $k, v: $v]```|
 
-#### -t=\<poll timeout> Kafka poll timeout.
+#### -t= Kafka poll timeout.
 
 Poll timeout.
 Default value is PT5S (5s).
 
 See [ISO duration format](https://www.digi.com/resources/documentation/digidocs/90001437-13/reference/r_iso_8601_duration_format.htm)
 
-#### -k=\<key format> Key format
+#### -k= Key format
 
 Key format. Default: HEX.
 
-#### -v=\<value format> Value format
+#### -v= Value format
 
 Value format. Default: HEX.
 
-#### --key-schema=\<key schema> (-k=AVRO only)
+#### --key-schema= Key schema (-k=AVRO only)
 
 Key schema. Default: SCHEMA_REGISTRY.
 
-#### --value-schema=\<value schema> Value schema (-v=AVRO only)
+#### --value-schema= Value schema (-v=AVRO only)
 
 Value schema. Default: SCHEMA_REGISTRY.
 
-#### -n=\<message count> Message count limit
+#### -n= Message count limit
 
 Message count limit. Default: 9223372036854775807.
 
 ### For all commands dealing with Kafka Admin Client.
 
-#### --client-properties=\<client properties> Client properties
+#### --client-properties= Client properties
 
 All properties are defined as a list of key-value pairs separated by ,, (two commas).
 
-#### --timeout=\<timeout> Client query timeout
+#### --timeout= Client query timeout
 
 Client query timeout. Default: PT5M.
 
