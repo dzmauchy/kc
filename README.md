@@ -192,3 +192,6 @@ INT|32-bit integer
 FLOAT|32-bit floating point number
 DOUBLE|64-bit floating point number
 AVRO|AVRO-encoded message
+
+# Time instants
+
