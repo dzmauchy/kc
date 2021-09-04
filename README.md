@@ -36,6 +36,7 @@ Kafka Console (kc)
   - __[Select (s)](#select-s)__
   - __[Consumer groups (g)](#consumer-groups-g)__
   - __[Fetch AVRO schema (S)](#fetch-avro-schema-s)__
+- __[Output formats](#output-formats)__
 <!-- /toc -->
 
 # Summary
