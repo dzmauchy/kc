@@ -40,7 +40,7 @@ Kafka Console is a command-line utility to make some **read-only** operations:
 * to get consumer groups
 * to fetch a schema from Schema Registry based on schema-id field in a message taken by the specified offset
 
-*All operations are read-only* so you <u>can't ruin your career by using this utility</u>.
+**All operations are read-only** so you <u>can't ruin your career by using this utility</u>.
 
 # Downloads
 
