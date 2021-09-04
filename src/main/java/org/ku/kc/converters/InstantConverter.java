@@ -67,6 +67,7 @@ public class InstantConverter implements CommandLine.ITypeConverter<Instant> {
       case "today": return LocalDateTime.now(UTC).truncatedTo(DAYS).toInstant(UTC);
       case "yesterday": return LocalDateTime.now(UTC).truncatedTo(DAYS).minusDays(1L).toInstant(UTC);
       case "tomorrow": return LocalDateTime.now(UTC).truncatedTo(DAYS).plusDays(1L).toInstant(UTC);
+      case "epoch":
       case "start": return Instant.EPOCH;
       default: {
         if (s.startsWith("-")) {

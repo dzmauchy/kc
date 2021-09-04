@@ -195,3 +195,17 @@ AVRO|AVRO-encoded message
 
 # Time instants
 
+Example | Description
+--------|------------
+now | Current timestamp
+today | 00:00:00 of current day
+yesterday | 00:00:00 of yesterday
+tomorrow | 00:00:00 of tomorrow
+start | 1970-01-01T00:00:00
+epoch | 1970-01-01T00:00:00
+2020-08-03T | 2020-08-03T00:00:00
+2020-08T | 2020-08-01T00:00:00
+2020T | 2020-01-01T00:00:00
+2020-08-03T09:33:21 | 2020-08-03T09:33:21
+2020-08-03T09:33 | 2020-08-03T09:33:00
+2020-08-03T09 | 2020-08-03T09:00:00
