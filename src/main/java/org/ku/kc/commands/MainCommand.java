@@ -14,7 +14,8 @@ import java.util.concurrent.Callable;
     SelectCommand.class,
     OffsetsCommand.class,
     TopicsCommand.class,
-    SchemaCommand.class
+    SchemaCommand.class,
+    ConsumerGroupsCommand.class
   }
 )
 public class MainCommand implements Callable<Integer> {

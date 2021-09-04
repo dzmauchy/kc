@@ -3,17 +3,21 @@ package org.ku.kc.commands;
 import groovy.json.JsonOutput;
 import groovyjarjarpicocli.CommandLine.Command;
 import groovyjarjarpicocli.CommandLine.Option;
+import groovyjarjarpicocli.CommandLine.Parameters;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.ListTopicsOptions;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.karaf.shell.table.ShellTable;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentSkipListMap;
 
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toConcurrentMap;
 
 @Command(
   name = "topics",
@@ -24,12 +28,10 @@ import static java.util.stream.Collectors.joining;
 )
 public class TopicsCommand extends AbstractAdminClientCommand implements Callable<Integer> {
 
-  @Option(
-    names = {"-p", "--pattern"},
-    description = "Topic name pattern",
-    defaultValue = ".+"
+  @Parameters(
+    description = "Topic patterns"
   )
-  public String pattern;
+  public List<String> topics;
 
   @Option(
     names = {"--list-internal"},
@@ -45,17 +47,16 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
       var opts = new ListTopicsOptions()
         .listInternal(internal);
       var topics = client.listTopics(opts).names().get().parallelStream()
-        .filter(s -> s.matches(pattern))
-        .sorted()
-        .collect(Collectors.toUnmodifiableList());
-      var descriptions = client.describeTopics(topics).all().get();
+        .filter(s -> this.topics.parallelStream().anyMatch(s::matches))
+        .collect(toConcurrentMap(identity(), s -> true, (t1, t2) -> t2, ConcurrentSkipListMap::new));
+      var descriptions = client.describeTopics(topics.keySet()).all().get();
       if (!quiet) {
         var table = new ShellTable();
         table.column("Topic").alignLeft();
         table.column("Partitions").alignCenter();
         table.column("Replicas").alignCenter();
         table.column("Operations").alignLeft();
-        for (var topic : topics) {
+        for (var topic : topics.keySet()) {
           var description = descriptions.get(topic);
           if (description != null) {
             table.addRow().addContent(
@@ -69,7 +70,7 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
         table.print(err);
       }
       var list = new ArrayList<Map<String, Object>>();
-      for (var topic : topics) {
+      for (var topic : topics.keySet()) {
         var description = descriptions.get(topic);
         if (description != null) {
           list.add(
@@ -82,7 +83,7 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
           );
         }
       }
-      out.println(JsonOutput.toJson(list));
+      out.println(finalOutput(JsonOutput.toJson(list)));
     }
     return 0;
   }

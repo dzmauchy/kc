@@ -3,13 +3,13 @@ package org.ku.kc.commands;
 import groovyjarjarpicocli.CommandLine.Command;
 import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
 import org.ku.kc.converters.InstantConverter;
 
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -51,8 +51,8 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
     var state = new FetchState();
     try (var consumer = new KafkaConsumer<>(consumerProps(), BAD, BAD)) {
       var offs = offsetForTimes(consumer);
-      var endOffs = consumer.endOffsets(offs.keySet());
-      var beginOffs = consumer.beginningOffsets(offs.keySet());
+      var beginOffs = tpMap(consumer.beginningOffsets(offs.keySet()));
+      var endOffs = tpMap(consumer.endOffsets(offs.keySet()));
       offs.entrySet().removeIf(e -> {
         var tp = e.getKey();
         var o = e.getValue();
@@ -69,15 +69,12 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
       var counter = new LongAdder();
       runTasks(ctx -> {
         while (!offs.isEmpty()) {
-          reportErrors();
-          var pollResult = consumer.poll(pollTimeout);
+          final ConsumerRecords<byte[], byte[]> pollResult;
+          synchronized (consumer) {
+            pollResult = consumer.poll(pollTimeout);
+          }
           ctx.addTask(() -> pollResult.partitions().parallelStream().forEach(tp -> {
-            long endOff = endOffs.getOrDefault(tp, 1L) - 1L;
             var rawRecords = pollResult.records(tp);
-            var lastRawRecord = rawRecords.get(rawRecords.size() - 1);
-            if (lastRawRecord.offset() >= endOff || lastRawRecord.timestamp() >= toMillis) {
-              offs.remove(tp);
-            }
             rawRecords.parallelStream()
               .filter(r -> r.timestamp() >= fromMillis && r.timestamp() < toMillis)
               .map(r -> new Object[]{
@@ -91,6 +88,19 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
               .map(state.outputFormatter::format)
               .peek(e -> counter.increment())
               .forEachOrdered(out::println);
+            long endOff = endOffs.getOrDefault(tp, 1L);
+            var lr = rawRecords.get(rawRecords.size() - 1);
+            if (lr.offset() >= endOff || lr.timestamp() >= toMillis) {
+              offs.remove(tp);
+            } else {
+              final long pos;
+              synchronized (consumer) {
+                pos = consumer.position(tp);
+              }
+              if (pos >= endOff) {
+                offs.remove(tp);
+              }
+            }
           }));
         }
       });
@@ -102,15 +112,12 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
   }
 
   private ConcurrentSkipListMap<TopicPartition, OffsetAndTimestamp> offsetForTimes(KafkaConsumer<?, ?> consumer) {
-    var tp = consumer.listTopics().entrySet().stream()
+    var tpFrom = consumer.listTopics().entrySet().stream()
       .filter(e -> topics.parallelStream().anyMatch(p -> e.getKey().matches(p)))
       .flatMap(e -> e.getValue().stream().map(v -> new TopicPartition(e.getKey(), v.partition())))
       .collect(Collectors.toUnmodifiableMap(e -> e, e -> from.toEpochMilli()));
-    final Comparator<TopicPartition> comparator = Comparator
-      .comparing(TopicPartition::topic)
-      .thenComparingInt(TopicPartition::partition);
-    var result = new ConcurrentSkipListMap<TopicPartition, OffsetAndTimestamp>(comparator);
-    var remoteTimes = consumer.offsetsForTimes(tp);
+    var result = new ConcurrentSkipListMap<TopicPartition, OffsetAndTimestamp>(this::compareTps);
+    var remoteTimes = consumer.offsetsForTimes(tpFrom);
     remoteTimes.forEach((k, v) -> {
       if (v != null) {
         result.put(k, v);

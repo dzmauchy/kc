@@ -3,8 +3,9 @@ package org.ku.kc.commands;
 import groovyjarjarpicocli.CommandLine.Option;
 import org.apache.kafka.common.TopicPartition;
 
-import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 import static groovyjarjarpicocli.CommandLine.Help.Visibility.ALWAYS;
 
@@ -20,9 +21,18 @@ public abstract class AbstractKafkaCommand extends AbstractCommand {
   )
   public List<String> bootstrapServers;
 
-  protected Comparator<TopicPartition> tpc() {
-    return Comparator
-      .comparing(TopicPartition::topic)
-      .thenComparingInt(TopicPartition::partition);
+  protected int compareTps(TopicPartition tp1, TopicPartition tp2) {
+    var c = tp1.topic().compareTo(tp2.topic());
+    if (c != 0) {
+      return c;
+    } else {
+      return Integer.compare(tp1.partition(), tp2.partition());
+    }
+  }
+
+  protected <T> ConcurrentSkipListMap<TopicPartition, T> tpMap(Map<TopicPartition, T> map) {
+    var result = new ConcurrentSkipListMap<TopicPartition, T>(this::compareTps);
+    map.entrySet().parallelStream().forEach(e -> result.put(e.getKey(), e.getValue()));
+    return result;
   }
 }

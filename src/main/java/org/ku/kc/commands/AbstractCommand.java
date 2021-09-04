@@ -38,6 +38,5 @@ public abstract class AbstractCommand {
   public boolean quiet;
 
   public PrintStream out = System.out;
-
   public PrintStream err = System.err;
 }

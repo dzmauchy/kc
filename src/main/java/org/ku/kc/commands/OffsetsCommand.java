@@ -39,12 +39,15 @@ public class OffsetsCommand extends AbstractAdminClientCommand implements Callab
   public Integer call() throws Exception {
     var offsetFormat = new DecimalFormat("0.0000E00");
     try (var consumer = new KafkaConsumer<>(clientProps(), new ByteArrayDeserializer(), new ByteArrayDeserializer())) {
-      var partitions = consumer.listTopics().entrySet().parallelStream()
+      var partitions = consumer.listTopics(timeout).entrySet().parallelStream()
         .filter(e -> topics.stream().anyMatch(p -> e.getKey().matches(p)))
         .collect(
           toConcurrentMap(
             Map.Entry::getKey,
-            e -> e.getValue().stream().map(p -> new TopicPartition(e.getKey(), p.partition())).sorted(tpc()).collect(toList()),
+            e -> e.getValue().stream()
+              .map(p -> new TopicPartition(e.getKey(), p.partition()))
+              .sorted(this::compareTps)
+              .collect(toList()),
             (o1, o2) -> o2,
             ConcurrentSkipListMap::new
           )
@@ -90,7 +93,7 @@ public class OffsetsCommand extends AbstractAdminClientCommand implements Callab
           table.print(err);
         }
       }
-      out.println(JsonOutput.toJson(result));
+      out.println(finalOutput(JsonOutput.toJson(result)));
     }
     return 0;
   }

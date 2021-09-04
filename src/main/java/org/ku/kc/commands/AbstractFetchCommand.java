@@ -180,7 +180,12 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
       return counter.incrementAndGet() <= messageCount;
     }
 
+    public boolean isCompleted() {
+      return counter.get() > messageCount;
+    }
+
     public void addTask(Runnable task) throws InterruptedException {
+      reportErrors();
       taskQueue.put(task);
     }
   }
