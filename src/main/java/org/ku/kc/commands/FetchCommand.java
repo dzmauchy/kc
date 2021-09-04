@@ -67,11 +67,11 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
       consumer.assign(offs.keySet());
       offs.forEach((k, v) -> consumer.seek(k, v.offset()));
       var counter = new LongAdder();
-      runTasks((filter, taskAdder) -> {
+      runTasks(ctx -> {
         while (!offs.isEmpty()) {
           reportErrors();
           var pollResult = consumer.poll(pollTimeout);
-          taskAdder.addTask(() -> pollResult.partitions().parallelStream().forEach(tp -> {
+          ctx.addTask(() -> pollResult.partitions().parallelStream().forEach(tp -> {
             long endOff = endOffs.getOrDefault(tp, 1L) - 1L;
             var rawRecords = pollResult.records(tp);
             var lastRawRecord = rawRecords.get(rawRecords.size() - 1);
@@ -86,7 +86,7 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
                 valueFormat.decode(r.value(), state.valueDecoderProps)
               })
               .filter(state.filter::call)
-              .filter(e -> filter.getAsBoolean())
+              .filter(ctx::filter)
               .map(state.projection::call)
               .map(state.outputFormatter::format)
               .peek(e -> counter.increment())

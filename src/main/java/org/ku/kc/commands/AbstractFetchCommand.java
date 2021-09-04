@@ -21,7 +21,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BooleanSupplier;
 
 public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
 
@@ -169,22 +168,33 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
     }
   };
 
-  protected interface TaskHandler {
-    void doTasks(BooleanSupplier filter, TaskAdder taskAdder) throws InterruptedException;
+  protected final class TaskContext {
+
+    private final AtomicLong counter = new AtomicLong();
+
+    public boolean filter(Object any) {
+      return filter();
+    }
+
+    public boolean filter() {
+      return counter.incrementAndGet() <= messageCount;
+    }
+
+    public void addTask(Runnable task) throws InterruptedException {
+      taskQueue.put(task);
+    }
   }
 
-  protected interface TaskAdder {
-    void addTask(Runnable task) throws InterruptedException;
+  protected interface TaskHandler {
+    void doTasks(TaskContext context) throws InterruptedException;
   }
 
   protected void runTasks(TaskHandler taskHandler) throws InterruptedException {
-    var counter = new AtomicLong();
-    var filter = (BooleanSupplier) () -> counter.incrementAndGet() <= messageCount;
-    var taskAdder = (TaskAdder) taskQueue::put;
+    var context = new TaskContext();
     taskThread.setDaemon(true);
     taskThread.start();
     try {
-      taskHandler.doTasks(filter, taskAdder);
+      taskHandler.doTasks(context);
       taskQueue.put(TERMINATOR);
       taskThread.join();
       reportErrors();
