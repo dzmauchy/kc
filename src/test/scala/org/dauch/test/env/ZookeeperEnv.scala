@@ -18,11 +18,11 @@ import scala.util.Using.resource
 
 trait ZookeeperEnv extends Env {
 
-  def conf: ZookeeperEnv.Conf = ZookeeperEnv.Conf()
+  def zkConf: ZookeeperEnv.Conf = ZookeeperEnv.Conf()
 
-  protected var zkQuorum: LongMap[QuorumServer] = LongMap.empty
-  protected var zkPeers: LongMap[QuorumPeer] = LongMap.empty
-  protected var zkDirectory: Path = _
+  private var zkQuorum = LongMap.empty[QuorumServer]
+  private var zkPeers = LongMap.empty[QuorumPeer]
+  private var zkDirectory: Path = _
 
   protected def zkConnectionText: String = zkPeers
     .map { case (_, p) => s"localhost:${p.getClientPort}" }
@@ -33,7 +33,7 @@ trait ZookeeperEnv extends Env {
     System.setProperty("zookeeper.admin.enableServer", "false")
     System.setProperty("zookeeper.leaderConnectDelayDuringRetryMs", "60000")
     ServerMetrics.metricsProviderInitialized(NullMetricsProvider.INSTANCE)
-    val conf = this.conf
+    val conf = this.zkConf
     val sockets = (1 to conf.nodes).map(id => id.toLong -> (new ServerSocket(0) -> new ServerSocket(0)))
     zkQuorum = LongMap.from(
       sockets.map { case (id, (s1, s2)) => id ->
@@ -46,8 +46,8 @@ trait ZookeeperEnv extends Env {
     sockets.foreach { case (_, (s1, s2)) => s1.close(); s2.close() }
     zkDirectory = Files.createTempDirectory("zoo")
     zkPeers = zkQuorum.map { case (id, _) =>
-      val log = zkDirectory.resolve("log")
-      val snap = zkDirectory.resolve("snap")
+      val log = zkDirectory.resolve("log-" + id)
+      val snap = zkDirectory.resolve("snap-" + id)
       val q = zkQuorum.asJava.asInstanceOf[JMap[JLong, QuorumServer]]
       val peer = new QuorumPeer(q, snap.toFile, log.toFile, 0, 3, id, 100, 1000, 100, 100)
       peer.initialize()
@@ -60,9 +60,9 @@ trait ZookeeperEnv extends Env {
   }
 
   override def after(): Unit = {
-    release { use =>
-      use.register(super.after())
-      use(zkDirectory)
+    release { resources =>
+      resources.register(super.after())
+      resources(zkDirectory)
       if (zkPeers != null) {
         zkPeers.foreachEntry((_, p) => p.shutdown())
         zkPeers.foreachEntry((_, p) => p.join())
@@ -85,7 +85,5 @@ trait ZookeeperEnv extends Env {
 }
 
 object ZookeeperEnv {
-  case class Conf(
-    nodes: Int = 3
-  )
+  case class Conf(nodes: Int = 3)
 }

@@ -1,6 +1,7 @@
 package org.dauch.test.env
 
-import org.dauch.test.env.Env.Closer
+import com.typesafe.scalalogging.StrictLogging
+import org.dauch.test.env.Env.{Closer, EventuallyTimeout}
 
 import java.io.File
 import java.nio.file.{Files, NotDirectoryException, Path}
@@ -9,11 +10,29 @@ import scala.concurrent.TimeoutException
 import scala.reflect.io.Directory
 import scala.util.Using
 import scala.util.Using.Releasable
+import scala.util.control.NonFatal
 
-trait Env {
+trait Env extends StrictLogging {
 
   def before(): Unit = ()
   def after(): Unit = ()
+
+  def eventually[R](code: => R)(implicit timeout: EventuallyTimeout = EventuallyTimeout(60_000L)): R = {
+    val startTime = System.nanoTime()
+    while (true) {
+      try {
+        return code
+      } catch {
+        case NonFatal(e) =>
+          if (System.nanoTime() - startTime > timeout.timeout * 1_000_000L) {
+            throw e
+          } else {
+            Thread.sleep(100L)
+          }
+      }
+    }
+    throw new IllegalStateException()
+  }
 
   def release(f: Closer => Unit): Unit = {
     val rss = new ConcurrentLinkedDeque[(AnyRef, Releasable[AnyRef])]()
@@ -122,4 +141,5 @@ object Env {
     def apply[T <: AnyRef : Releasable](f: => T): T
     def register(code: => Unit): Unit = apply((() => code): AutoCloseable)
   }
+  case class EventuallyTimeout(timeout: Long) extends AnyVal
 }
