@@ -104,6 +104,7 @@ class TestLoggingConfigurer {
       case "org.apache.zookeeper.ClientCnxn" =>
         r.getMessage match {
           case s"$_ Closing socket connection.$_" => false
+          case s"An exception was thrown while closing send thread for session$_" => false
           case _ => true
         }
       case _ => true

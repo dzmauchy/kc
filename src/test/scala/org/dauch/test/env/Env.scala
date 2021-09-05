@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.dauch.test.env.Env.{Closer, EventuallyTimeout}
 
 import java.io.File
+import java.lang.ref.Cleaner
 import java.nio.file.{Files, NotDirectoryException, Path}
 import java.util.concurrent.{ConcurrentLinkedDeque, ExecutorService, TimeUnit}
 import scala.concurrent.TimeoutException
@@ -34,7 +35,7 @@ trait Env extends StrictLogging {
     throw new IllegalStateException()
   }
 
-  def release(f: Closer => Unit): Unit = {
+  def release[R](f: Closer => R): R = {
     val rss = new ConcurrentLinkedDeque[(AnyRef, Releasable[AnyRef])]()
     val closer = new Closer {
       override def apply[T <: AnyRef : Releasable](f: => T): T = {
@@ -44,8 +45,18 @@ trait Env extends StrictLogging {
         }
         r
       }
+      override def close[T <: AnyRef : Releasable](ref: T): Unit = {
+        rss.removeIf {case (r, rs) =>
+          if (r eq ref) {
+            rs.release(r)
+            true
+          } else {
+            false
+          }
+        }
+      }
     }
-    try {
+    val result = try {
       f(closer)
     } catch {
       case e: Throwable =>
@@ -76,6 +87,8 @@ trait Env extends StrictLogging {
     }
     if (exception != null) {
       throw exception
+    } else {
+      result
     }
   }
 
@@ -137,9 +150,11 @@ trait Env extends StrictLogging {
 }
 
 object Env {
+  val EnvCleaner: Cleaner = Cleaner.create()
   trait Closer {
     def apply[T <: AnyRef : Releasable](f: => T): T
     def register(code: => Unit): Unit = apply((() => code): AutoCloseable)
+    def close[T <: AnyRef : Releasable](ref: T): Unit
   }
   case class EventuallyTimeout(timeout: Long) extends AnyVal
 }
