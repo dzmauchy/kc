@@ -1,9 +1,12 @@
 package org.dauch.kc.logging
 
 import java.util.logging._
+import scala.util.chaining.scalaUtilChainingOps
 
 class TestLoggingConfigurer {
-  LogManager.getLogManager.reset()
-  Logger.getLogger("").setLevel(Level.INFO)
-  Logger.getLogger("").addHandler(TestLoggingHandler)
+  Logger.getLogger("").tap { rootLogger =>
+    rootLogger.getHandlers.foreach(rootLogger.removeHandler)
+    rootLogger.setLevel(Level.INFO)
+    rootLogger.addHandler(TestLoggingHandler)
+  }
 }

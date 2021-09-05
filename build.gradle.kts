@@ -24,6 +24,7 @@ tasks.withType<Test> {
 
   jvmArgs("-Xmx8g")
 
+  systemProperty("java.util.logging.manager", "org.dauch.kc.logging.TestLogManager")
   systemProperty("java.util.logging.config.class", "org.dauch.kc.logging.TestLoggingConfigurer")
 
   testLogging {
