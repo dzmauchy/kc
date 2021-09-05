@@ -22,6 +22,8 @@ tasks.withType<Test> {
 
   maxParallelForks = 1
 
+  jvmArgs("-Xmx8g")
+
   systemProperty("java.util.logging.config.class", "org.dauch.kc.logging.TestLoggingConfigurer")
 
   testLogging {
@@ -71,7 +73,8 @@ tasks.withType<ScalaCompile> {
     isDeprecation = true
     additionalParameters = listOf(
       "-release", javaVersion.toString(),
-      "-Xfatal-warnings"
+      "-Xfatal-warnings",
+      "-Xsource:3.0.1"
     )
   }
   targetCompatibility = javaVersion.toString()
