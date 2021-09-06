@@ -1,5 +1,6 @@
 package org.dauch.test.env
 
+import com.typesafe.scalalogging.StrictLogging
 import kafka.server.{KafkaConfig, KafkaServer}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord, RecordMetadata}
@@ -8,12 +9,9 @@ import org.apache.kafka.common.network.ListenerName
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization._
 import org.apache.kafka.metadata.BrokerState
-import org.dauch.test.env.Env.{Closer, EnvCleaner}
 import org.dauch.test.env.KafkaEnv._
-import org.dauch.test.utils.ConsumerRecordsUtils
 
-import java.io.File.createTempFile
-import java.io.{File, FileInputStream, FileOutputStream}
+import java.lang.invoke.VarHandle
 import java.nio.file.{Files, Path}
 import java.rmi.server.UID
 import java.time.Duration
@@ -72,6 +70,7 @@ trait KafkaEnv extends ZookeeperEnv {
         kafkaServers.foreach(s => resources.register(s.shutdown()))
       }
     }
+    logger.info("KAFKA shutdown")
   }
 
   def kafkaBootstrapServers: String = kafkaServers
@@ -81,7 +80,7 @@ trait KafkaEnv extends ZookeeperEnv {
     }
     .mkString(",")
 
-  def consume[R](query: ConsumeQuery, tx: Boolean = false)(f: Fetcher => R): R = {
+  def consume[R](query: ConsumeQuery, tx: Boolean = false, log: Boolean = true)(f: Fetcher => R): R = {
     val props = new Properties()
     props.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, new UID().toString)
     props.setProperty(ConsumerConfig.GROUP_ID_CONFIG, new UID().toString)
@@ -102,14 +101,13 @@ trait KafkaEnv extends ZookeeperEnv {
           c.assign(tpos.map { case (t, p, _) => new TopicPartition(t, p) }.asJava)
           tpos.foreach { case (t, p, o) => c.seek(new TopicPartition(t, p), o) }
       }
-      val tempFile = $(createTempFile("consumer", ".data"))
-      val fetcher = $(new FetcherImpl(c, $, tempFile))
+      val fetcher = $(new FetcherImpl(c, log))
       fetcher.start()
       f(fetcher)
     }
   }
 
-  def produce[R](batchSize: Int, linger: Int = 100, tx: Boolean = false)(f: Producer => R): R = {
+  def produce[R](batchSize: Int, linger: Int = 100, tx: Boolean = false, log: Boolean = true)(f: Producer => R): R = {
     val props = new Properties()
     props.setProperty(ProducerConfig.CLIENT_ID_CONFIG, new UID().toString)
     props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaBootstrapServers)
@@ -124,17 +122,9 @@ trait KafkaEnv extends ZookeeperEnv {
       if (tx) {
         p.initTransactions()
       }
-      f(new ProducerImpl(p))
+      f(new ProducerImpl(p, log))
     }
   }
-
-  implicit def longSerializer: Serializer[Long] = new LongSerializer().asInstanceOf[Serializer[Long]]
-  implicit def intSerializer: Serializer[Int] = new IntegerSerializer().asInstanceOf[Serializer[Int]]
-  implicit def bytesSerializer: Serializer[Array[Byte]] = new ByteArraySerializer
-  implicit def stringSerializer: Serializer[String] = new StringSerializer
-  implicit def floatSerializer: Serializer[Float] = new FloatSerializer().asInstanceOf[Serializer[Float]]
-  implicit def doubleSerializer: Serializer[Double] = new DoubleSerializer().asInstanceOf[Serializer[Double]]
-  implicit def shortSerializer: Serializer[Short] = new ShortSerializer().asInstanceOf[Serializer[Short]]
 }
 
 object KafkaEnv {
@@ -153,75 +143,59 @@ object KafkaEnv {
   trait Fetcher {
     def fetch[R](f: Iterable[Record] => R): R
     def seek(tpos: (String, Int, Long)*): Unit
-    def read[K: Deserializer, V: Deserializer, R](f: Iterable[ConsumerRecord[K, V]] => R): R = fetch { it =>
-      f(it.map(r => new ConsumerRecord(
-        r.topic(),
-        r.partition(),
-        r.offset(),
-        r.timestamp(),
-        r.timestampType(),
-        null,
-        r.serializedKeySize(),
-        r.serializedValueSize(),
-        implicitly[Deserializer[K]].deserialize(r.topic(), r.key()),
-        implicitly[Deserializer[V]].deserialize(r.topic(), r.value()),
-        r.headers(),
-        r.leaderEpoch()
-      )))
+    def read[K: Deserializer, V: Deserializer]: SpecificReader[K, V] = {
+      val kDeserializer = implicitly[Deserializer[K]]
+      val vDeserializer = implicitly[Deserializer[V]]
+      new SpecificReader[K, V] {
+        override def from[R](f: Iterable[ConsumerRecord[K, V]] => R): R = {
+          fetch { it =>
+            f(new Iterable[ConsumerRecord[K, V]] {
+              override def iterator: Iterator[ConsumerRecord[K, V]] = {
+                it.iterator.map { r =>
+                  new ConsumerRecord(
+                    r.topic(),
+                    r.partition(),
+                    r.offset(),
+                    r.timestamp(),
+                    r.timestampType(),
+                    null,
+                    r.serializedKeySize(),
+                    r.serializedValueSize(),
+                    kDeserializer.deserialize(r.topic(), r.key()),
+                    vDeserializer.deserialize(r.topic(), r.value()),
+                    r.headers(),
+                    r.leaderEpoch()
+                  )
+                }
+              }
+            })
+          }
+        }
+      }
     }
   }
 
-  private final class FetcherImpl(consumer: RawConsumer, resources: Closer, tempFile: File)
-    extends Fetcher
-      with AutoCloseable {
+  trait SpecificReader[K, V] {
+    def from[R](f: Iterable[ConsumerRecord[K, V]] => R): R
+  }
 
-    private val outputStream = resources(new FileOutputStream(tempFile))
+  private final class FetcherImpl(consumer: RawConsumer, log: Boolean)
+    extends Fetcher
+      with AutoCloseable
+      with StrictLogging {
+
+    private var queue = Vector.empty[Record]
     private val thread = new Thread(() => run())
 
     @volatile private var active = true
     @volatile private var error: Throwable = _
 
-    private val iterable = new Iterable[Records] {
-      override def iterator: Iterator[Records] = {
-        val is = resources(new FileInputStream(tempFile))
-        val it = new Iterator[Records] {
-          private var curElem: Records = _
-          override def hasNext: Boolean = {
-            if (curElem != null) {
-              true
-            } else {
-              val rs = ConsumerRecordsUtils.read(is)
-              curElem = if (rs.isEmpty) null else rs
-              curElem != null
-            }
-          }
-          override def next(): Records = {
-            if (curElem != null) {
-              val r = curElem
-              val rs = ConsumerRecordsUtils.read(is)
-              curElem = if (rs.isEmpty) null else rs
-              r
-            } else {
-              val rs = ConsumerRecordsUtils.read(is)
-              if (rs.isEmpty) {
-                throw new NoSuchElementException
-              } else {
-                curElem = rs
-                rs
-              }
-            }
-          }
-        }
-        EnvCleaner.register(it, () => resources.close(is))
-        it
-      }
-    }
-
     override def fetch[R](f: Iterable[Record] => R): R = {
-      val it = new Iterable[Record] {
-        override def iterator: Iterator[Record] = iterable.iterator.flatMap(rs => rs.iterator().asScala)
-      }
-      f(it)
+      f(new Iterable[Record] {
+        override def iterator: Iterator[Record] = {
+          queue.iterator
+        }
+      })
     }
     override def seek(tpos: (String, Int, Long)*): Unit = {
       for ((topic, partition, offset) <- tpos) {
@@ -235,7 +209,12 @@ object KafkaEnv {
       try {
         while (active && !thread.isInterrupted) {
           val records = consumer.synchronized(consumer.poll(Duration.ofSeconds(1L)))
-          ConsumerRecordsUtils.write(outputStream, records)
+          val vec = Vector.from(records.iterator().asScala)
+          queue = queue ++ vec
+          VarHandle.releaseFence()
+          if (log) {
+            vec.foreach(logger.info("Received {}", _))
+          }
         }
       } catch {
         case e: Throwable => error = e
@@ -253,7 +232,7 @@ object KafkaEnv {
     def doInTx[T](code: => T): T
   }
 
-  private final class ProducerImpl(producer: KafkaProducer[Array[Byte], Array[Byte]]) extends Producer {
+  private final class ProducerImpl(producer: KafkaProducer[Array[Byte], Array[Byte]], log: Boolean) extends Producer with StrictLogging {
     override def produce[K: Serializer, V: Serializer](record: ProducerRecord[K, V]): Future[RecordMetadata] = {
       val r = new ProducerRecord(
         record.topic(),
@@ -263,18 +242,35 @@ object KafkaEnv {
         implicitly[Serializer[V]].serialize(record.topic(), record.headers(), record.value()),
         record.headers()
       )
-      producer.send(r)
+      producer.send(r, (metadata: RecordMetadata, exception: Exception) => {
+        if (log) {
+          if (exception != null) {
+            logger.error("Unable to produce {}", metadata)
+          } else {
+            logger.info("Produced {}", metadata)
+          }
+        }
+      })
     }
     override def doInTx[T](code: => T): T = {
       producer.beginTransaction()
+      if (log) {
+        logger.info("Tx started")
+      }
       try {
         val r = code
         producer.commitTransaction()
+        if (log) {
+          logger.info("Tx committed")
+        }
         r
       } catch {
         case e: Throwable =>
           try {
             producer.abortTransaction()
+            if (log) {
+              logger.info("Tx aborted")
+            }
           } catch {
             case x: Throwable => e.addSuppressed(x)
           }

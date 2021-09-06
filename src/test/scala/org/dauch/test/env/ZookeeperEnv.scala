@@ -63,6 +63,7 @@ trait ZookeeperEnv extends Env {
     while (zkPeers.exists(_._2.getPeerState == ServerState.LOOKING)) {
       sleep(100L)
     }
+    logger.info("Zookeeper cluster started: {}", zkConnectionText)
   }
 
   override def after(): Unit = {
@@ -74,6 +75,7 @@ trait ZookeeperEnv extends Env {
         zkPeers.foreachEntry((_, p) => p.join())
       }
     }
+    logger.info("Zookeeper cluster shutdown")
   }
 
   protected def withZookeeper[R](code: ZooKeeper => R)(implicit watcher: Watcher = _ => ()): R = {

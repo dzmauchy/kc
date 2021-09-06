@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "org.dauch"
-version = "0.3.2"
+version = "0.3.3"
 
 val javaVersion = JavaVersion.VERSION_11
 val kafkaVersion = "2.8.0"
@@ -75,7 +75,7 @@ tasks.withType<ScalaCompile> {
     additionalParameters = listOf(
       "-release", javaVersion.toString(),
       "-Xfatal-warnings",
-      "-Xsource:3.0.1"
+      "-Xsource:3"
     )
   }
   targetCompatibility = javaVersion.toString()
