@@ -4,7 +4,9 @@ plugins {
   java
   scala
   application
+
   id("com.github.blueboxware.tocme").version("1.3")
+  id("org.cadixdev.licenser").version("0.6.1")
 }
 
 group = "org.dauch"
@@ -110,4 +112,19 @@ tocme {
   doc("README.md") {
     levels = levels("1-5")
   }
+}
+
+afterEvaluate {
+  tasks.getByName("clean") {
+    dependsOn(
+      tasks.getByName("updateLicenses")
+    )
+  }
+}
+
+license {
+  include("**/*.java")
+  include("**/*.scala")
+  setHeader(rootProject.file("license_header.txt"))
+  newLine(false)
 }
