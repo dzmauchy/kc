@@ -1,4 +1,4 @@
-package org.dauch.kc.logging
+package org.dauch.test.logging
 
 import java.util.logging._
 import scala.util.chaining.scalaUtilChainingOps

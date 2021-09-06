@@ -1,4 +1,4 @@
-package org.dauch.kc.logging
+package org.dauch.test.logging
 
 import java.io.{EOFException, IOException}
 import java.net.{ConnectException, SocketException}

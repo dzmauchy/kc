@@ -24,8 +24,8 @@ tasks.withType<Test> {
 
   jvmArgs("-Xmx8g")
 
-  systemProperty("java.util.logging.manager", "org.dauch.kc.logging.TestLogManager")
-  systemProperty("java.util.logging.config.class", "org.dauch.kc.logging.TestLoggingConfigurer")
+  systemProperty("java.util.logging.manager", "org.dauch.test.logging.TestLogManager")
+  systemProperty("java.util.logging.config.class", "org.dauch.test.logging.TestLoggingConfigurer")
 
   testLogging {
     events = enumValues<org.gradle.api.tasks.testing.logging.TestLogEvent>().toSet()

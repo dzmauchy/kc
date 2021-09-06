@@ -1,4 +1,6 @@
-package org.dauch.kc.logging
+package org.dauch.test.logging
+
+import org.dauch.kc.logging.DefaultFormatter
 
 import java.io.PrintStream
 import java.nio.charset.StandardCharsets.UTF_8

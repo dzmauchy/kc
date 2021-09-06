@@ -25,7 +25,7 @@ trait KafkaEnv extends ZookeeperEnv {
 
   def kafkaConf: KafkaEnv.Conf = KafkaEnv.Conf()
 
-  private var kafkaServers: IndexedSeq[KafkaServer] = _
+  private var kafkaServers = IndexedSeq.empty[KafkaServer]
   private var kafkaDirectory: Path = _
 
   override def before(): Unit = {
@@ -65,10 +65,8 @@ trait KafkaEnv extends ZookeeperEnv {
     release { resources =>
       resources.register(super.after())
       resources(kafkaDirectory)
-      if (kafkaServers != null) {
-        kafkaServers.foreach(s => resources.register(s.awaitShutdown()))
-        kafkaServers.foreach(s => resources.register(s.shutdown()))
-      }
+      kafkaServers.foreach(s => resources.register(s.awaitShutdown()))
+      kafkaServers.foreach(s => resources.register(s.shutdown()))
     }
     logger.info("KAFKA shutdown")
   }
@@ -193,6 +191,7 @@ object KafkaEnv {
     override def fetch[R](f: Iterable[Record] => R): R = {
       f(new Iterable[Record] {
         override def iterator: Iterator[Record] = {
+          VarHandle.acquireFence()
           queue.iterator
         }
       })
