@@ -21,10 +21,12 @@ Kafka Console Read-Only Tool is a command-line utility to make some **read-only*
 
 **All operations are read-only** so you <u>can't ruin your career by using this utility</u>.
 
+See the [Detailed Documentation](kcr.md).
+
 # Downloads
 
 All files could be downloaded from [Releases](https://github.com/dzmauchy/kc/releases)
 
 # Documentation
 
-[kcr](kcr.md)
+* [Kafka Read-Only Console Tool](kcr.md)
