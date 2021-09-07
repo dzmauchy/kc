@@ -132,7 +132,7 @@ subprojects {
           filter(
             org.apache.tools.ant.filters.ReplaceTokens::class,
             "tokens" to mapOf(
-              "project.version" to project.version,
+              "project.version" to rootProject.version,
               "year" to java.time.LocalDate.now().year.toString()
             )
           )
