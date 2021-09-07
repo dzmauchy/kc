@@ -51,10 +51,12 @@ subprojects {
   }
 
   tasks.withType<JavaCompile> {
-    options.compilerArgs.addAll(listOf(
-      "-parameters",
-      "-Xlint:deprecation"
-    ))
+    options.compilerArgs.addAll(
+      listOf(
+        "-parameters",
+        "-Xlint:deprecation"
+      )
+    )
   }
 
   tasks.withType<ScalaCompile> {
@@ -159,7 +161,9 @@ subprojects {
 }
 
 tocme {
-  doc("README.md") {
-    levels = levels("1-5")
+  listOf("README.md", "kcr.md").forEach { file ->
+    doc(file) {
+      levels = levels("1-5")
+    }
   }
 }
