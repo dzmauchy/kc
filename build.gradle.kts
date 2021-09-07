@@ -100,6 +100,7 @@ subprojects {
           exclude(group = "org.slf4j", module = "slf4j-log4j12")
         }
         "api"(group = "org.slf4j", name = "log4j-over-slf4j", version = slf4jVersion)
+        "api"(group = "org.slf4j", name = "slf4j-jdk14", version = slf4jVersion)
         "api"(group = "org.scala-lang", name = "scala-reflect", version = "2.13.6")
         "api"(group = "io.dropwizard.metrics", name = "metrics-core", version = "3.2.6")
       }
