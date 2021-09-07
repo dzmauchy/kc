@@ -10,6 +10,7 @@ val javaVersion = JavaVersion.VERSION_11
 val scalaVersion: String by project
 val kafkaVersion: String by project
 val slf4jVersion: String by project
+val groovyVersion: String by project
 
 subprojects {
   repositories {
@@ -110,7 +111,10 @@ subprojects {
     "kc-ro" -> {
       dependencies {
         "api"(project(":kc-core"))
-        "api"(group = "org.codehaus.groovy", name = "groovy-json", version = "3.0.8", classifier = "indy")
+        "api"(group = "org.codehaus.groovy", name = "groovy", version = groovyVersion, classifier = "indy")
+        "api"(group = "org.codehaus.groovy", name = "groovy-json", version = groovyVersion, classifier = "indy") {
+          exclude(group = "org.codehaus.groovy", module = "groovy")
+        }
         "api"(group = "org.apache.karaf.shell", name = "org.apache.karaf.shell.table", version = "4.0.10")
         "testImplementation"(project(":kc-test"))
       }
