@@ -78,7 +78,7 @@ subprojects {
   }
 
   when (name) {
-    "kc-test", "kc-core", "kcr" -> {
+    "kc-test", "kc-core", "kc-ro" -> {
       apply(plugin = "java-library")
     }
   }
@@ -107,7 +107,7 @@ subprojects {
         "api"(group = "io.dropwizard.metrics", name = "metrics-core", version = "3.2.6")
       }
     }
-    "kcr" -> {
+    "kc-ro" -> {
       dependencies {
         "api"(project(":kc-core"))
         "api"(group = "org.codehaus.groovy", name = "groovy-json", version = "3.0.8", classifier = "indy")
@@ -118,7 +118,7 @@ subprojects {
   }
 
   when (name) {
-    "kcr" -> {
+    "kc-ro" -> {
       apply(plugin = "application")
 
       tasks.named<ProcessResources>("processResources") {
@@ -139,7 +139,7 @@ subprojects {
 
       configure<JavaApplication> {
         mainClass.set("org.dauch.kc.Kcr")
-        applicationName = "kcr"
+        applicationName = "kc-ro"
       }
     }
   }
@@ -161,7 +161,7 @@ subprojects {
 }
 
 tocme {
-  listOf("README.md", "kcr.md").forEach { file ->
+  listOf("README.md", "kc-ro.md").forEach { file ->
     doc(file) {
       levels = levels("1-5")
     }
