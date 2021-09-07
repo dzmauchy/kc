@@ -22,9 +22,9 @@ import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, Produce
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.network.ListenerName
 import org.apache.kafka.common.security.auth.SecurityProtocol
-import org.apache.kafka.common.serialization._
+import org.apache.kafka.common.serialization.*
 import org.apache.kafka.metadata.BrokerState
-import org.dauch.test.env.KafkaEnv._
+import org.dauch.test.env.KafkaEnv.*
 
 import java.lang.invoke.VarHandle
 import java.nio.file.{Files, Path}
@@ -33,7 +33,7 @@ import java.time.Duration
 import java.util.Properties
 import java.util.concurrent.Future
 import java.util.regex.Pattern
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import scala.util.Using.resource
 
 trait KafkaEnv extends ZookeeperEnv {
@@ -107,10 +107,10 @@ trait KafkaEnv extends ZookeeperEnv {
     release { $ =>
       val c = $(new KafkaConsumer(props, new ByteArrayDeserializer, new ByteArrayDeserializer))
       query match {
-        case TopicsQuery(topics@_*) => c.subscribe(topics.asJavaCollection)
+        case TopicsQuery(topics*) => c.subscribe(topics.asJavaCollection)
         case TopicPatternQuery(pattern) => c.subscribe(pattern)
-        case AssignQuery(tps@_*) => c.assign(tps.map { case (t, p) => new TopicPartition(t, p) }.asJava)
-        case SeekQuery(tpos@_*) =>
+        case AssignQuery(tps*) => c.assign(tps.map { case (t, p) => new TopicPartition(t, p) }.asJava)
+        case SeekQuery(tpos*) =>
           c.assign(tpos.map { case (t, p, _) => new TopicPartition(t, p) }.asJava)
           tpos.foreach { case (t, p, o) => c.seek(new TopicPartition(t, p), o) }
       }

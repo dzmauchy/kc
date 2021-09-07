@@ -15,9 +15,9 @@
  */
 package org.dauch.test.implicits
 
-import org.apache.kafka.common.serialization.{ByteArraySerializer, DoubleSerializer, FloatSerializer, IntegerSerializer, LongSerializer, Serializer, ShortSerializer, StringSerializer}
+import org.apache.kafka.common.serialization.*
 
-import java.lang.{Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
+import java.lang.{Double as JDouble, Float as JFloat, Integer as JInt, Long as JLong, Short as JShort}
 
 trait SerializerImplicits {
   implicit def longSerializer: Serializer[JLong] = new LongSerializer

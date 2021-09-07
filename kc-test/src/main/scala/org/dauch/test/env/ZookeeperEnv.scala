@@ -23,13 +23,13 @@ import org.apache.zookeeper.server.quorum.QuorumPeer.{QuorumServer, ServerState}
 import org.apache.zookeeper.{Watcher, ZooKeeper}
 
 import java.lang.Thread.sleep
-import java.lang.{Long => JLong}
+import java.lang.Long as JLong
 import java.net.{InetSocketAddress, ServerSocket}
 import java.nio.file.{Files, Path}
-import java.util.{Map => JMap}
+import java.util.Map as JMap
 import scala.collection.immutable.LongMap
 import scala.concurrent.TimeoutException
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 import scala.util.Using.resource
 
 trait ZookeeperEnv extends Env {

@@ -15,7 +15,7 @@
  */
 package org.dauch.test.logging
 
-import java.util.logging._
+import java.util.logging.*
 import scala.util.chaining.scalaUtilChainingOps
 
 class TestLoggingConfigurer {
