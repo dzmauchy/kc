@@ -115,10 +115,16 @@ subprojects {
         "testImplementation"(project(":kc-test"))
       }
     }
+    "kc-rw" -> {
+      dependencies {
+        "implementation"(project(":kc-ro"))
+        "testImplementation"(project(":kc-test"))
+      }
+    }
   }
 
   when (name) {
-    "kc-ro" -> {
+    "kc-ro", "kc-rw" -> {
       apply(plugin = "application")
 
       tasks.named<ProcessResources>("processResources") {
@@ -136,10 +142,13 @@ subprojects {
       tasks.withType<CreateStartScripts> {
         classpath = files("*", "conf")
       }
+    }
+  }
 
+  when (name) {
+    "kc-ro" -> {
       configure<JavaApplication> {
         mainClass.set("org.dauch.kc.Kcr")
-        applicationName = "kc-ro"
       }
     }
   }
