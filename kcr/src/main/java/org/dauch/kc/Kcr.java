@@ -24,7 +24,7 @@ import java.util.logging.FileHandler;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
-public class Kc {
+public class Kcr {
 
   public static void main(String... args) throws Exception {
     initLogging();
