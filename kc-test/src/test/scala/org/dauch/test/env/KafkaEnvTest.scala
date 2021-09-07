@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.dauch.kc
+package org.dauch.test.env
 
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.dauch.test.TestWithEnv
-import org.dauch.test.env.KafkaEnv
 import org.dauch.test.env.KafkaEnv.TopicsQuery
 import org.dauch.test.implicits.{DeserializerImplicits, SerializerImplicits}
 import org.junit.jupiter.api.Assertions.assertEquals

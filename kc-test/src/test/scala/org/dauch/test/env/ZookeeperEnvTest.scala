@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.dauch.kc
+package org.dauch.test.env
 
 import org.apache.zookeeper.CreateMode.PERSISTENT
 import org.apache.zookeeper.ZooDefs.Ids.OPEN_ACL_UNSAFE
 import org.dauch.test.TestWithEnv
-import org.dauch.test.env.ZookeeperEnv
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.{Tag, Test}
 
