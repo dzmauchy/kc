@@ -43,8 +43,8 @@ trait KafkaEnv extends ZookeeperEnv {
   private var kafkaServers = IndexedSeq.empty[KafkaServer]
   private var kafkaDirectory: Path = _
 
-  override def before(): Unit = {
-    super.before()
+  override def beforeAll(): Unit = {
+    super.beforeAll()
     val conf = this.kafkaConf
     kafkaDirectory = Files.createTempDirectory("kafka")
     kafkaServers = (0 until conf.nodes).map { id =>
@@ -76,9 +76,9 @@ trait KafkaEnv extends ZookeeperEnv {
     logger.info("Started KAFKA: {}", kafkaBootstrapServers)
   }
 
-  override def after(): Unit = {
+  override def afterAll(): Unit = {
     release { resources =>
-      resources.register(super.after())
+      resources.register(super.afterAll())
       resources(kafkaDirectory)
       kafkaServers.foreach(s => resources.register(s.awaitShutdown()))
       kafkaServers.foreach(s => resources.register(s.shutdown()))

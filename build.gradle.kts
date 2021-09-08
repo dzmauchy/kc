@@ -131,6 +131,7 @@ subprojects {
     "kc-ro", "kc-rw" -> {
       apply(plugin = "application")
 
+      @Suppress("UnstableApiUsage")
       tasks.named<ProcessResources>("processResources") {
         filesMatching("**/*.properties") {
           filter(

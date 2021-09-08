@@ -44,8 +44,8 @@ trait ZookeeperEnv extends Env {
     .map { case (_, p) => s"localhost:${p.getClientPort}" }
     .mkString(",")
 
-  override def before(): Unit = {
-    super.before()
+  override def beforeAll(): Unit = {
+    super.beforeAll()
     System.setProperty("zookeeper.admin.enableServer", "false")
     System.setProperty("zookeeper.leaderConnectDelayDuringRetryMs", "60000")
     ServerMetrics.metricsProviderInitialized(NullMetricsProvider.INSTANCE)
@@ -81,9 +81,9 @@ trait ZookeeperEnv extends Env {
     logger.info("Zookeeper cluster started: {}", zkConnectionText)
   }
 
-  override def after(): Unit = {
+  override def afterAll(): Unit = {
     release { resources =>
-      resources.register(super.after())
+      resources.register(super.afterAll())
       resources(zkDirectory)
       if (zkPeers != null) {
         zkPeers.foreachEntry((_, p) => p.shutdown())

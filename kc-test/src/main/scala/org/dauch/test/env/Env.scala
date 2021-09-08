@@ -30,8 +30,10 @@ import scala.util.control.NonFatal
 
 trait Env extends StrictLogging {
 
-  def before(): Unit = ()
-  def after(): Unit = ()
+  def beforeAll(): Unit = ()
+  def afterAll(): Unit = ()
+  def beforeEach(): Unit = ()
+  def afterEach(): Unit = ()
 
   def eventually[R](code: => R)(implicit timeout: EventuallyTimeout = EventuallyTimeout(60_000L)): R = {
     val startTime = System.nanoTime()
