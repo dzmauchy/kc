@@ -16,7 +16,9 @@
 package org.dauch.test.env
 
 import com.typesafe.scalalogging.StrictLogging
-import org.dauch.test.env.Env.{Closer, EventuallyTimeout}
+import org.dauch.test.env.Env.Closer
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.{Milliseconds, Minutes, Span}
 
 import java.io.File
 import java.lang.ref.Cleaner
@@ -26,31 +28,18 @@ import scala.concurrent.TimeoutException
 import scala.reflect.io.Directory
 import scala.util.Using
 import scala.util.Using.Releasable
-import scala.util.control.NonFatal
 
-trait Env extends StrictLogging {
+trait Env extends StrictLogging with Eventually {
 
   def beforeAll(): Unit = ()
   def afterAll(): Unit = ()
   def beforeEach(): Unit = ()
   def afterEach(): Unit = ()
 
-  def eventually[R](code: => R)(implicit timeout: EventuallyTimeout = EventuallyTimeout(60_000L)): R = {
-    val startTime = System.nanoTime()
-    while (true) {
-      try {
-        return code
-      } catch {
-        case NonFatal(e) =>
-          if (System.nanoTime() - startTime > timeout.timeout * 1_000_000L) {
-            throw e
-          } else {
-            Thread.sleep(100L)
-          }
-      }
-    }
-    throw new IllegalStateException()
-  }
+  override implicit def patienceConfig: PatienceConfig = PatienceConfig(
+    timeout = Span(1L, Minutes),
+    interval = Span(200L, Milliseconds)
+  )
 
   def release[R](f: Closer => R): R = {
     val rss = new ConcurrentLinkedDeque[(AnyRef, Releasable[AnyRef])]()
@@ -63,7 +52,7 @@ trait Env extends StrictLogging {
         r
       }
       override def close[T <: AnyRef : Releasable](ref: T): Unit = {
-        rss.removeIf {case (r, rs) =>
+        rss.removeIf { case (r, rs) =>
           if (r eq ref) {
             rs.release(r)
             true
@@ -173,5 +162,4 @@ object Env {
     def register(code: => Unit): Unit = apply((() => code): AutoCloseable)
     def close[T <: AnyRef : Releasable](ref: T): Unit
   }
-  case class EventuallyTimeout(timeout: Long) extends AnyVal
 }
