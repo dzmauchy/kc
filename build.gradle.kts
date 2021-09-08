@@ -7,10 +7,8 @@ group = "org.dauch"
 version = "0.3.3"
 
 val javaVersion = JavaVersion.VERSION_11
-val scalaVersion: String by project
-val kafkaVersion: String by project
-val slf4jVersion: String by project
-val groovyVersion: String by project
+
+val licenseHeaderFile = file("license_header.txt")
 
 subprojects {
   repositories {
@@ -104,8 +102,10 @@ subprojects {
         }
         "api"(group = "org.slf4j", name = "log4j-over-slf4j", version = slf4jVersion)
         "api"(group = "org.slf4j", name = "slf4j-jdk14", version = slf4jVersion)
-        "api"(group = "org.scala-lang", name = "scala-reflect", version = "2.13.6")
+        "api"(group = "org.scala-lang", name = "scala-reflect", version = scalaVersion)
         "api"(group = "io.dropwizard.metrics", name = "metrics-core", version = "3.2.6")
+        "api"(scalatestDependency(name = "scalatest"))
+        "api"(scalatestDependency(name = "scalatest-shouldmatchers"))
       }
     }
     "kc-ro" -> {
@@ -168,7 +168,7 @@ subprojects {
   license {
     include("**/*.java")
     include("**/*.scala")
-    setHeader(rootProject.file("license_header.txt"))
+    setHeader(licenseHeaderFile)
     newLine(false)
   }
 }
