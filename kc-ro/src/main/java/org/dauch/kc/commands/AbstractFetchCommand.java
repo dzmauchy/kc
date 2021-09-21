@@ -49,7 +49,7 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
   @Option(
     names = {"-p", "--projection"},
     description = "Projection expression",
-    defaultValue = "[t: $r.topic(), p: $r.partition(), o: $r.offset(), k: $k, v: $v]"
+    defaultValue = "[t: $r.topic(), p: $r.partition(), o: $r.offset(), ts: $r.timestamp(), k: $k, v: $v]"
   )
   public String projection;
 
