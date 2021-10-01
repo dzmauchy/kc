@@ -1,0 +1,3 @@
+moduleName = kc
+moduleVersion = 1.0
+extensionClasses = org.dauch.kc.groovy.KcExtensions
