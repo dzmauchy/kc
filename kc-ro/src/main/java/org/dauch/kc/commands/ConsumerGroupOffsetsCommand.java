@@ -21,16 +21,23 @@ import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsOptions;
+import org.apache.kafka.clients.admin.ListOffsetsOptions;
+import org.apache.kafka.clients.admin.ListOffsetsResult.ListOffsetsResultInfo;
+import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.karaf.shell.table.ShellTable;
 import org.dauch.kc.converters.TopicPartitionConverter;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
 
+import static groovyjarjarpicocli.CommandLine.Help.Visibility.ALWAYS;
 import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.toConcurrentMap;
 
 @Command(
   name = "cgoffsets",
@@ -45,6 +52,15 @@ public class ConsumerGroupOffsetsCommand extends AbstractAdminClientCommand impl
     description = "Consumer group"
   )
   public String group;
+
+  @Option(
+    names = {"--transactional", "--tx"},
+    description = "Transactional enabled",
+    defaultValue = "false",
+    showDefaultValue = ALWAYS,
+    fallbackValue = "true"
+  )
+  public boolean transactional;
 
   @Parameters(
     description = "Topic partitions",
@@ -62,12 +78,29 @@ public class ConsumerGroupOffsetsCommand extends AbstractAdminClientCommand impl
       var result = client.listConsumerGroupOffsets(group, options)
         .partitionsToOffsetAndMetadata()
         .get();
+      var listOffsetOptions = new ListOffsetsOptions(
+        transactional ? IsolationLevel.READ_COMMITTED : IsolationLevel.READ_UNCOMMITTED
+      ).timeoutMs((int) timeout.toMillis());
+      var earliestRequest = result.keySet().parallelStream()
+        .collect(toConcurrentMap(e -> e, e -> OffsetSpec.earliest()));
+      var latestRequest = result.keySet().parallelStream()
+        .collect(toConcurrentMap(e -> e, e -> OffsetSpec.latest()));
+      var earliest = client.listOffsets(earliestRequest, listOffsetOptions).all().get();
+      var latest = client.listOffsets(latestRequest, listOffsetOptions).all().get();
       if (!quiet) {
         var table = new ShellTable();
         table.column("Topic").alignLeft();
         table.column("Partition").alignRight();
         table.column("Offset").alignRight();
-        result.forEach((tp, om) -> table.addRow().addContent(tp.topic(), tp.partition(), om.offset()));
+        table.column("Earliest").alignRight();
+        table.column("Latest").alignRight();
+        result.forEach((tp, om) -> table.addRow().addContent(
+          tp.topic(),
+          tp.partition(),
+          om.offset(),
+          Optional.ofNullable(earliest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L),
+          Optional.ofNullable(latest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L)
+        ));
         table.print(err);
       }
       var map = new LinkedHashMap<String, TreeMap<Integer, TreeMap<String, Object>>>();
@@ -76,6 +109,8 @@ public class ConsumerGroupOffsetsCommand extends AbstractAdminClientCommand impl
           .computeIfAbsent(tp.topic(), t -> new TreeMap<>())
           .computeIfAbsent(tp.partition(), p -> new TreeMap<>());
         m.put("offset", om.offset());
+        m.put("earliest", Optional.ofNullable(earliest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L));
+        m.put("latest", Optional.ofNullable(latest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L));
         om.leaderEpoch().ifPresent(le -> m.put("leaderEpoch", le));
         m.put("metadata", om.metadata());
       });
