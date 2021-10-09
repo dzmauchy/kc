@@ -153,7 +153,12 @@ subprojects {
   when (name) {
     "kc-ro" -> {
       configure<JavaApplication> {
-        mainClass.set("org.dauch.kc.Kcr")
+        mainClass.set("org.dauch.kcr.Kcr")
+      }
+    }
+    "kc-rw" -> {
+      configure<JavaApplication> {
+        mainClass.set("org.dauch.kcw.Kcw")
       }
     }
   }
