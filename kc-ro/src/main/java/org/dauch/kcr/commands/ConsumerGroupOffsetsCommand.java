@@ -24,6 +24,7 @@ import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsOptions;
 import org.apache.kafka.clients.admin.ListOffsetsOptions;
 import org.apache.kafka.clients.admin.ListOffsetsResult.ListOffsetsResultInfo;
 import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.karaf.shell.table.ShellTable;
@@ -97,7 +98,7 @@ public class ConsumerGroupOffsetsCommand extends AbstractAdminClientCommand impl
         result.forEach((tp, om) -> table.addRow().addContent(
           tp.topic(),
           tp.partition(),
-          om.offset(),
+          Optional.ofNullable(om).map(OffsetAndMetadata::offset).orElse(-1L),
           Optional.ofNullable(earliest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L),
           Optional.ofNullable(latest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L)
         ));
@@ -108,11 +109,16 @@ public class ConsumerGroupOffsetsCommand extends AbstractAdminClientCommand impl
         var m = map
           .computeIfAbsent(tp.topic(), t -> new TreeMap<>())
           .computeIfAbsent(tp.partition(), p -> new TreeMap<>());
-        m.put("offset", om.offset());
+        m.put("offset", Optional.ofNullable(om).map(OffsetAndMetadata::offset).orElse(-1L));
         m.put("earliest", Optional.ofNullable(earliest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L));
         m.put("latest", Optional.ofNullable(latest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L));
-        om.leaderEpoch().ifPresent(le -> m.put("leaderEpoch", le));
-        m.put("metadata", om.metadata());
+        Optional
+          .ofNullable(om)
+          .flatMap(OffsetAndMetadata::leaderEpoch)
+          .ifPresent(le -> m.put("leaderEpoch", le));
+        Optional
+          .ofNullable(om)
+          .ifPresent(d -> m.put("metadata", d.metadata()));
       });
       out.println(finalOutput(JsonOutput.toJson(map)));
     }
