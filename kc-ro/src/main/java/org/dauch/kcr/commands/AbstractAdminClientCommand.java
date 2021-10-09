@@ -17,13 +17,18 @@ package org.dauch.kcr.commands;
 
 import groovy.json.JsonOutput;
 import groovyjarjarpicocli.CommandLine.Option;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.dauch.kcr.kafka.KafkaProperties;
+import org.apache.kafka.clients.admin.ListTopicsOptions;
 import org.dauch.kcr.converters.PropertiesConverter;
+import org.dauch.kcr.kafka.KafkaProperties;
 
 import java.rmi.server.UID;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 public abstract class AbstractAdminClientCommand extends AbstractKafkaCommand {
 
@@ -59,5 +64,14 @@ public abstract class AbstractAdminClientCommand extends AbstractKafkaCommand {
 
   protected String finalOutput(String outputText) {
     return pretty ? JsonOutput.prettyPrint(outputText) : outputText;
+  }
+
+  protected TreeSet<String> topics(AdminClient client, boolean internal, Collection<String> topics) throws Exception {
+    return client.listTopics(new ListTopicsOptions()
+        .listInternal(internal)
+        .timeoutMs((int) timeout.toMillis())
+      ).names().get().parallelStream()
+      .filter(t -> topics.stream().anyMatch(t::matches))
+      .collect(Collectors.toCollection(TreeSet::new));
   }
 }

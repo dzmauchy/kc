@@ -15,14 +15,17 @@
  */
 package org.dauch.kcw.commands;
 
+import groovy.json.JsonOutput;
 import groovyjarjarpicocli.CommandLine.Command;
 import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.DeleteTopicsOptions;
 import org.dauch.kcr.commands.AbstractAdminClientCommand;
+import org.dauch.kcr.util.ExceptionUtils;
 
 import java.util.List;
+import java.util.TreeMap;
 import java.util.concurrent.Callable;
 
 import static java.util.Collections.emptyList;
@@ -49,6 +52,14 @@ public class DeleteTopicsCommand extends AbstractAdminClientCommand implements C
   )
   public boolean retryOnQuotaViolation;
 
+  @Option(
+    names = {"--internal"},
+    description = "Include internal topics flag",
+    fallbackValue = "true",
+    defaultValue = "false"
+  )
+  public boolean internal;
+
   @Override
   public Integer call() throws Exception {
     if (topics.isEmpty()) {
@@ -56,13 +67,23 @@ public class DeleteTopicsCommand extends AbstractAdminClientCommand implements C
       return 0;
     }
     try (var client = AdminClient.create(clientProps())) {
-      var r = client.deleteTopics(
-        topics,
-        new DeleteTopicsOptions()
-          .timeoutMs((int) timeout.toMillis())
-          .retryOnQuotaViolation(retryOnQuotaViolation)
-      );
-      r.all().get();
+      var topicNames = topics(client, internal, topics);
+      var deleteOpts = new DeleteTopicsOptions()
+        .retryOnQuotaViolation(retryOnQuotaViolation)
+        .timeoutMs((int) timeout.toMillis());
+      var map = new TreeMap<String, Object>();
+      client.deleteTopics(topicNames, deleteOpts).values().forEach((t, f) -> {
+        try {
+          f.get();
+          map.put(t, true);
+        } catch (Exception e) {
+          map.put(t, ExceptionUtils.exceptionToMap(e));
+          if (!quiet) {
+            e.printStackTrace(err);
+          }
+        }
+      });
+      out.println(finalOutput(JsonOutput.toJson(map)));
     }
     return 0;
   }
