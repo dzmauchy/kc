@@ -51,7 +51,7 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
 
   @Option(
     names = {"--list-internal"},
-    description = "Topic name pattern",
+    description = "Whether include internal topics too",
     fallbackValue = "true",
     defaultValue = "false"
   )

@@ -32,6 +32,7 @@ import java.util.concurrent.Callable;
     SelectCommand.class,
     OffsetsCommand.class,
     TopicsCommand.class,
+    ConfigCommand.class,
     SchemaCommand.class,
     ConsumerGroupsCommand.class,
     ConsumerGroupOffsetsCommand.class
