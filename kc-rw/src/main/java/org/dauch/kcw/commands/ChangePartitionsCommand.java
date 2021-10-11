@@ -79,6 +79,44 @@ public class ChangePartitionsCommand extends AbstractAdminClientCommand implemen
   )
   public boolean validationOnly;
 
+  @Option(
+    names = {"-g", "--group"},
+    description = "Consumer group",
+    defaultValue = ""
+  )
+  public String group = "";
+
+  private DescribeTopicsOptions describeTOpts() {
+    return new DescribeTopicsOptions()
+      .timeoutMs((int) timeout.toMillis())
+      .includeAuthorizedOperations(false);
+  }
+
+  private CreatePartitionsOptions createPOpts() {
+    return new CreatePartitionsOptions()
+      .timeoutMs((int) timeout.toMillis())
+      .validateOnly(validationOnly)
+      .retryOnQuotaViolation(retryOnQuotaViolation);
+  }
+
+  private DescribeConfigsOptions describeCOpts() {
+    return new DescribeConfigsOptions()
+      .timeoutMs((int) timeout.toMillis());
+  }
+
+  private DeleteTopicsOptions deleteTOpts() {
+    return new DeleteTopicsOptions()
+      .timeoutMs((int) timeout.toMillis())
+      .retryOnQuotaViolation(retryOnQuotaViolation);
+  }
+
+  private CreateTopicsOptions createTOpts() {
+    return new CreateTopicsOptions()
+      .retryOnQuotaViolation(retryOnQuotaViolation)
+      .timeoutMs((int) timeout.toMillis())
+      .validateOnly(validationOnly);
+  }
+
   @Override
   public Integer call() throws Exception {
     if (topics.isEmpty()) {
@@ -87,42 +125,27 @@ public class ChangePartitionsCommand extends AbstractAdminClientCommand implemen
     }
     try (var client = AdminClient.create(clientProps())) {
       var topicNames = topics(client, internal, topics);
-      var describeTopicsOpts = new DescribeTopicsOptions()
-        .timeoutMs((int) timeout.toMillis())
-        .includeAuthorizedOperations(false);
-      var createPartitionsOpts = new CreatePartitionsOptions()
-        .timeoutMs((int) timeout.toMillis())
-        .validateOnly(validationOnly)
-        .retryOnQuotaViolation(retryOnQuotaViolation);
-      var deleteTopicOpts = new DeleteTopicsOptions()
-        .timeoutMs((int) timeout.toMillis())
-        .retryOnQuotaViolation(retryOnQuotaViolation);
       var map = new TreeMap<String, Object>();
       for (var t : topicNames) {
-        var prf = client.describeTopics(singleton(t), describeTopicsOpts).all();
+        var prf = client.describeTopics(singleton(t), describeTOpts()).all();
         try {
           var pr = prf.get().get(t);
           if (pr != null) {
             var n = pr.partitions().size();
             if (partitions > n) {
-              client.createPartitions(Map.of(t, increaseTo(partitions)), createPartitionsOpts).all().get();
+              client.createPartitions(Map.of(t, increaseTo(partitions)), createPOpts()).all().get();
               map.put(t, true);
             } else if (partitions < n) {
-              var opts = new DescribeConfigsOptions().timeoutMs((int) timeout.toMillis());
               var cr = new ConfigResource(TOPIC, t);
-              var dtr = client.describeConfigs(singleton(cr), opts).all().get();
+              var dtr = client.describeConfigs(singleton(cr), describeCOpts()).all().get();
               var r = dtr.get(cr);
               if (r != null) {
-                client.deleteTopics(singleton(t), deleteTopicOpts).all().get();
-                var cOpts = new CreateTopicsOptions()
-                  .retryOnQuotaViolation(retryOnQuotaViolation)
-                  .timeoutMs((int) timeout.toMillis())
-                  .validateOnly(validationOnly);
+                client.deleteTopics(singleton(t), deleteTOpts()).all().get();
                 var props = new TreeMap<String, String>();
                 r.entries().forEach(e -> props.put(e.name(), e.value()));
-                var nt = new NewTopic(t, partitions, (short) pr.partitions().get(0).replicas().size())
-                  .configs(props);
-                client.createTopics(singleton(nt), cOpts).all().get();
+                var replicas = (short) pr.partitions().get(0).replicas().size();
+                var nt = new NewTopic(t, partitions, replicas).configs(props);
+                client.createTopics(singleton(nt), createTOpts()).all().get();
                 map.put(t, true);
               } else {
                 map.put(t, "NO_CONFIG_INFO");
