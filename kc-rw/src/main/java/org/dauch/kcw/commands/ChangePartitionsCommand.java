@@ -20,17 +20,33 @@ import groovyjarjarpicocli.CommandLine.Command;
 import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;
 import org.apache.kafka.clients.admin.*;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigResource;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.dauch.kcr.commands.AbstractAdminClientCommand;
 import org.dauch.kcr.util.ExceptionUtils;
 
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.io.*;
+import java.time.Duration;
+import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singleton;
+import static java.util.stream.Collectors.toList;
+import static java.util.zip.Deflater.BEST_COMPRESSION;
 import static org.apache.kafka.clients.admin.NewPartitions.increaseTo;
 import static org.apache.kafka.common.config.ConfigResource.Type.TOPIC;
 
@@ -117,18 +133,25 @@ public class ChangePartitionsCommand extends AbstractAdminClientCommand implemen
       .validateOnly(validationOnly);
   }
 
+  private ListConsumerGroupOffsetsOptions listGroupOffsetsOpts(List<TopicPartition> tps) {
+    return new ListConsumerGroupOffsetsOptions()
+      .topicPartitions(tps)
+      .timeoutMs((int) (timeout.toMillis()));
+  }
+
   @Override
   public Integer call() throws Exception {
     if (topics.isEmpty()) {
-      err.println("Empty topic list to change partitions");
+      verbose("Empty topic list to change partitions%n");
       return 0;
     }
     try (var client = AdminClient.create(clientProps())) {
       var topicNames = topics(client, internal, topics);
       var map = new TreeMap<String, Object>();
       for (var t : topicNames) {
-        var prf = client.describeTopics(singleton(t), describeTOpts()).all();
+        verbose("Processing topic %s%n", t);
         try {
+          var prf = client.describeTopics(singleton(t), describeTOpts()).all();
           var pr = prf.get().get(t);
           if (pr != null) {
             var n = pr.partitions().size();
@@ -140,12 +163,19 @@ public class ChangePartitionsCommand extends AbstractAdminClientCommand implemen
               var dtr = client.describeConfigs(singleton(cr), describeCOpts()).all().get();
               var r = dtr.get(cr);
               if (r != null) {
+                verbose("Copying data to a temporary file%n");
+                var file = readData(t, pr, client);
+                verbose("Deleting topic%n");
                 client.deleteTopics(singleton(t), deleteTOpts()).all().get();
+                verbose("Creating topic%n");
                 var props = new TreeMap<String, String>();
                 r.entries().forEach(e -> props.put(e.name(), e.value()));
                 var replicas = (short) pr.partitions().get(0).replicas().size();
                 var nt = new NewTopic(t, partitions, replicas).configs(props);
                 client.createTopics(singleton(nt), createTOpts()).all().get();
+                verbose("Copying data from the temporary file%n");
+                writeData(file, t);
+                verbose("Finished%n");
                 map.put(t, true);
               } else {
                 map.put(t, "NO_CONFIG_INFO");
@@ -156,13 +186,139 @@ public class ChangePartitionsCommand extends AbstractAdminClientCommand implemen
           }
         } catch (Throwable e) {
           map.put(t, ExceptionUtils.exceptionToMap(e));
-          if (!quiet) {
-            e.printStackTrace(err);
-          }
+          report(e);
         }
       }
       out.println(finalOutput(JsonOutput.toJson(map)));
     }
     return 0;
+  }
+
+  private File readData(String topic, TopicDescription td, AdminClient client) throws Exception {
+    var props = new Properties();
+    props.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, String.join(",", bootstrapServers));
+    props.setProperty(ConsumerConfig.CLIENT_ID_CONFIG, "kc");
+    props.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+    props.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+    props.setProperty(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
+    props.setProperty(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+    props.setProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "2048");
+    props.setProperty(ConsumerConfig.RECEIVE_BUFFER_CONFIG, Integer.toString(1 << 20));
+    var tps = td.partitions().parallelStream()
+      .map(d -> new TopicPartition(topic, d.partition()))
+      .collect(toList());
+    try (var c = new KafkaConsumer<>(props, new ByteArrayDeserializer(), new ByteArrayDeserializer())) {
+      if (group.isBlank()) {
+        c.assign(tps);
+      } else {
+        var offsets = client.listConsumerGroupOffsets(group, listGroupOffsetsOpts(tps))
+          .partitionsToOffsetAndMetadata()
+          .get();
+        c.assign(tps);
+        for (var tp : tps) {
+          var om = offsets.get(tp);
+          if (om == null) {
+            c.seekToBeginning(singleton(tp));
+          } else {
+            c.seek(tp, om);
+          }
+        }
+      }
+      var file = File.createTempFile("kc", ".tmp");
+      try (var os = new DataOutputStream(
+        new GZIPOutputStream(new FileOutputStream(file), 65536) {{def.setLevel(BEST_COMPRESSION);}}
+      )) {
+        while (true) {
+          var records = c.poll(Duration.ofSeconds(5L));
+          if (records.isEmpty()) {
+            var endOffsets = c.endOffsets(tps);
+            if (tps.stream().allMatch(tp -> c.position(tp) >= endOffsets.getOrDefault(tp, 0L))) {
+              break;
+            }
+          } else {
+            for (var r : records) {
+              os.writeBoolean(true);
+              var headers = r.headers().toArray();
+              os.writeInt(headers.length);
+              for (var h : headers) {
+                os.writeUTF(h.key());
+                write(h.value(), os);
+              }
+              os.writeLong(r.timestamp());
+              write(r.key(), os);
+              write(r.value(), os);
+            }
+            os.writeBoolean(false);
+          }
+        }
+      }
+      return file;
+    }
+  }
+
+  private void write(byte[] data, DataOutputStream os) throws IOException {
+    if (data == null) {
+      os.writeInt(-1);
+    } else {
+      os.writeInt(data.length);
+      os.write(data);
+    }
+  }
+
+  private void writeData(File file, String topic) throws Exception {
+    var props = new Properties();
+    props.setProperty(ProducerConfig.CLIENT_ID_CONFIG, "kc");
+    props.setProperty(ProducerConfig.ACKS_CONFIG, "all");
+    props.setProperty(ProducerConfig.SEND_BUFFER_CONFIG, Integer.toString(1 << 20));
+    props.setProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
+    props.setProperty(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1");
+    props.setProperty(ProducerConfig.LINGER_MS_CONFIG, "1000");
+    props.setProperty(ProducerConfig.BATCH_SIZE_CONFIG, Integer.toString(1 << 20));
+    var exceptions = new ConcurrentLinkedQueue<Exception>();
+    var counter = new AtomicLong();
+    try (
+      var p = new KafkaProducer<>(props, new ByteArraySerializer(), new ByteArraySerializer());
+      var is = new DataInputStream(new GZIPInputStream(new FileInputStream(file), 1 << 20))
+    ) {
+      while (true) {
+        var flag = is.readBoolean();
+        if (flag) {
+          var hSize = is.readInt();
+          var headers = new LinkedList<Header>();
+          for (int i = 0; i < hSize; i++) {
+            headers.add(new RecordHeader(is.readUTF(), read(is)));
+          }
+          var timestamp = is.readLong();
+          var key = read(is);
+          var value = read(is);
+          var rec = new ProducerRecord<>(topic, null, timestamp, key, value, headers);
+          counter.incrementAndGet();
+          p.send(rec, (md, e) -> {
+            if (e != null) {
+              exceptions.add(e);
+            }
+            counter.decrementAndGet();
+          });
+        } else {
+          break;
+        }
+      }
+      while (counter.get() > 0L && exceptions.isEmpty()) {
+        Thread.sleep(1_000L);
+      }
+      if (!exceptions.isEmpty()) {
+        var e = exceptions.poll();
+        exceptions.removeIf(x -> {
+          e.addSuppressed(x);
+          return true;
+        });
+        throw e;
+      }
+    }
+  }
+
+  private byte[] read(DataInputStream is) throws IOException {
+    var size = is.readInt();
+    return size == -1 ? null : is.readNBytes(size);
   }
 }

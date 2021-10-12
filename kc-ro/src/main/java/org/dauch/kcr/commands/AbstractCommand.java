@@ -54,4 +54,16 @@ public abstract class AbstractCommand {
 
   public PrintStream out = System.out;
   public PrintStream err = System.err;
+
+  protected void verbose(String format, Object... args) {
+    if (!quiet) {
+      err.format(format, args);
+    }
+  }
+
+  protected void report(Throwable throwable) {
+    if (!quiet) {
+      throwable.printStackTrace(err);
+    }
+  }
 }
