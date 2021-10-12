@@ -25,6 +25,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.header.Header;
@@ -38,8 +39,8 @@ import java.io.*;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -102,6 +103,14 @@ public class ChangePartitionsCommand extends AbstractAdminClientCommand implemen
   )
   public String group = "";
 
+  @Option(
+    names = {"--skip-data"},
+    description = "Skip data flag",
+    fallbackValue = "true",
+    defaultValue = "false"
+  )
+  public boolean skipData;
+
   private DescribeTopicsOptions describeTOpts() {
     return new DescribeTopicsOptions()
       .timeoutMs((int) timeout.toMillis())
@@ -160,21 +169,27 @@ public class ChangePartitionsCommand extends AbstractAdminClientCommand implemen
               map.put(t, true);
             } else if (partitions < n) {
               var cr = new ConfigResource(TOPIC, t);
-              var dtr = client.describeConfigs(singleton(cr), describeCOpts()).all().get();
-              var r = dtr.get(cr);
+              var r = client.describeConfigs(singleton(cr), describeCOpts()).all().get().get(cr);
               if (r != null) {
-                verbose("Copying data to a temporary file%n");
-                var file = readData(t, pr, client);
-                verbose("Deleting topic%n");
-                client.deleteTopics(singleton(t), deleteTOpts()).all().get();
-                verbose("Creating topic%n");
                 var props = new TreeMap<String, String>();
                 r.entries().forEach(e -> props.put(e.name(), e.value()));
                 var replicas = (short) pr.partitions().get(0).replicas().size();
                 var nt = new NewTopic(t, partitions, replicas).configs(props);
-                client.createTopics(singleton(nt), createTOpts()).all().get();
-                verbose("Copying data from the temporary file%n");
-                writeData(file, t);
+                if (skipData) {
+                  verbose("Deleting topic%n");
+                  client.deleteTopics(singleton(t), deleteTOpts()).all().get();
+                  verbose("Creating topic%n");
+                  client.createTopics(singleton(nt), createTOpts()).all().get();
+                } else {
+                  verbose("Copying data to a temporary file%n");
+                  var file = readData(t, pr, client);
+                  verbose("Deleting topic%n");
+                  client.deleteTopics(singleton(t), deleteTOpts()).all().get();
+                  verbose("Creating topic%n");
+                  client.createTopics(singleton(nt), createTOpts()).all().get();
+                  verbose("Copying data from the temporary file%n");
+                  writeData(file, t);
+                }
                 verbose("Finished%n");
                 map.put(t, true);
               } else {
@@ -274,40 +289,46 @@ public class ChangePartitionsCommand extends AbstractAdminClientCommand implemen
     props.setProperty(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "1");
     props.setProperty(ProducerConfig.LINGER_MS_CONFIG, "1000");
     props.setProperty(ProducerConfig.BATCH_SIZE_CONFIG, Integer.toString(1 << 20));
-    var exceptions = new ConcurrentLinkedQueue<Exception>();
-    var counter = new AtomicLong();
     try (
       var p = new KafkaProducer<>(props, new ByteArraySerializer(), new ByteArraySerializer());
       var is = new DataInputStream(new GZIPInputStream(new FileInputStream(file), 1 << 20))
     ) {
-      while (true) {
-        var flag = is.readBoolean();
-        if (flag) {
-          var hSize = is.readInt();
-          var headers = new LinkedList<Header>();
-          for (int i = 0; i < hSize; i++) {
-            headers.add(new RecordHeader(is.readUTF(), read(is)));
+      var futures = new HashMap<CompletableFuture<RecordMetadata>, Boolean>();
+      var exceptions = new ConcurrentLinkedQueue<Exception>();
+      while (is.readBoolean()) {
+        var hSize = is.readInt();
+        var headers = new LinkedList<Header>();
+        for (int i = 0; i < hSize; i++) {
+          headers.add(new RecordHeader(is.readUTF(), read(is)));
+        }
+        var timestamp = is.readLong();
+        var key = read(is);
+        var value = read(is);
+        var f = new CompletableFuture<RecordMetadata>();
+        synchronized (futures) {
+          futures.put(f, true);
+        }
+        var rec = new ProducerRecord<>(topic, null, timestamp, key, value, headers);
+        p.send(rec, (md, e) -> {
+          if (e == null) {
+            f.complete(md);
+          } else {
+            f.completeExceptionally(e);
+            exceptions.add(e);
           }
-          var timestamp = is.readLong();
-          var key = read(is);
-          var value = read(is);
-          var rec = new ProducerRecord<>(topic, null, timestamp, key, value, headers);
-          counter.incrementAndGet();
-          p.send(rec, (md, e) -> {
-            if (e != null) {
-              exceptions.add(e);
-            }
-            counter.decrementAndGet();
-          });
-        } else {
-          break;
+          synchronized (futures) {
+            futures.remove(f);
+            futures.notify();
+          }
+        });
+      }
+      synchronized (futures) {
+        while (!futures.isEmpty() && exceptions.isEmpty()) {
+          futures.wait(1000L);
         }
       }
-      while (counter.get() > 0L && exceptions.isEmpty()) {
-        Thread.sleep(1_000L);
-      }
-      if (!exceptions.isEmpty()) {
-        var e = exceptions.poll();
+      var e = exceptions.poll();
+      if (e != null) {
         exceptions.removeIf(x -> {
           e.addSuppressed(x);
           return true;

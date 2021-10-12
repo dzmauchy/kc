@@ -38,7 +38,8 @@ import java.util.concurrent.Callable;
     ConsumerGroupsCommand.class,
     ConsumerGroupOffsetsCommand.class,
     // read-write
-    DeleteTopicsCommand.class
+    DeleteTopicsCommand.class,
+    ChangePartitionsCommand.class
   }
 )
 public class KcwCommand implements Callable<Integer> {
