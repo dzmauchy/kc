@@ -44,7 +44,8 @@ import static java.util.stream.Collectors.toConcurrentMap;
   name = "cgoffsets",
   aliases = {"O"},
   description = "Consumer group offsets",
-  mixinStandardHelpOptions = true
+  mixinStandardHelpOptions = true,
+  showDefaultValues = true
 )
 public class ConsumerGroupOffsetsCommand extends AbstractAdminClientCommand implements Callable<Integer> {
 

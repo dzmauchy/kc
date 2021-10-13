@@ -29,7 +29,8 @@ public class Kcr {
   public static void main(String... args) throws Exception {
     initLogging();
     var commandLine = new CommandLine(new KcrCommand());
-    commandLine.getCommandSpec().versionProvider(new KcVersionProvider());
+    commandLine.getCommandSpec()
+      .versionProvider(new KcVersionProvider());
     int code = commandLine.execute(args);
     System.exit(code);
   }

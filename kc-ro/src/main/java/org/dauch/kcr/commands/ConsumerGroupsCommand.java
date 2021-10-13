@@ -20,31 +20,37 @@ import groovyjarjarpicocli.CommandLine.Command;
 import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.ConsumerGroupListing;
 import org.apache.kafka.clients.admin.DescribeConsumerGroupsOptions;
+import org.apache.kafka.clients.admin.ListConsumerGroupsOptions;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.karaf.shell.table.ShellTable;
 
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static groovyjarjarpicocli.CommandLine.Help.Visibility.ALWAYS;
 import static java.util.Collections.emptyList;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toConcurrentMap;
+import static java.util.stream.Collectors.toList;
 
 @Command(
   name = "groups",
   aliases = {"g"},
   description = "Consumer groups",
-  mixinStandardHelpOptions = true
+  mixinStandardHelpOptions = true,
+  showDefaultValues = true
 )
 public class ConsumerGroupsCommand extends AbstractAdminClientCommand implements Callable<Integer> {
 
   @Option(
     names = {"--iao", "--include-authorized-operations"},
     description = "Whether include authorized operations or not",
-    defaultValue = "false",
-    showDefaultValue = ALWAYS
+    fallbackValue = "true",
+    defaultValue = "false"
   )
   private boolean includeAuthorizedOperations;
 
@@ -53,13 +59,26 @@ public class ConsumerGroupsCommand extends AbstractAdminClientCommand implements
   )
   public List<String> groups = emptyList();
 
+  private DescribeConsumerGroupsOptions describeOpts() {
+    return new DescribeConsumerGroupsOptions()
+      .timeoutMs((int) timeout.toMillis())
+      .includeAuthorizedOperations(includeAuthorizedOperations);
+  }
+
+  private ListConsumerGroupsOptions listOpts() {
+    return new ListConsumerGroupsOptions()
+      .timeoutMs((int) timeout.toMillis());
+  }
+
   @Override
   public Integer call() throws Exception {
     try (var client = AdminClient.create(clientProps())) {
-      var opts = new DescribeConsumerGroupsOptions();
-      opts.timeoutMs((int) timeout.toMillis());
-      opts.includeAuthorizedOperations(includeAuthorizedOperations);
-      var r = client.describeConsumerGroups(groups, opts).all().get();
+      var groups = client.listConsumerGroups(listOpts()).all().get().parallelStream()
+        .map(ConsumerGroupListing::groupId)
+        .filter(s -> this.groups.isEmpty() || this.groups.stream().anyMatch(s::matches))
+        .collect(toConcurrentMap(identity(), e -> true, (v1, v2) -> v2, ConcurrentSkipListMap::new))
+        .keySet();
+      var r = client.describeConsumerGroups(groups, describeOpts()).all().get();
       if (!quiet) {
         var table = new ShellTable();
         table.column("Group").alignLeft();
@@ -82,7 +101,7 @@ public class ConsumerGroupsCommand extends AbstractAdminClientCommand implements
           .flatMap(Set::stream)
           .sorted(Comparator.comparingInt(e -> Byte.toUnsignedInt(e.code())))
           .map(o -> Map.of("code", Byte.toUnsignedInt(o.code()), "op", o.name()))
-          .collect(Collectors.toList());
+          .collect(toList());
         var members = description.members().stream()
           .map(m -> {
             var assignment = m.assignment().topicPartitions().stream()
@@ -100,7 +119,7 @@ public class ConsumerGroupsCommand extends AbstractAdminClientCommand implements
             memberMap.put("assignment", assignment);
             return memberMap;
           })
-          .collect(Collectors.toList());
+          .collect(toList());
         var coordinator = new LinkedHashMap<String, Object>();
         coordinator.put("id", description.coordinator().idString());
         coordinator.put("host", description.coordinator().host());

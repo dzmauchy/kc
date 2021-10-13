@@ -42,7 +42,8 @@ import static java.util.stream.Collectors.*;
   name = "offsets",
   aliases = {"o"},
   description = "Offset-related command",
-  mixinStandardHelpOptions = true
+  mixinStandardHelpOptions = true,
+  showDefaultValues = true
 )
 public class OffsetsCommand extends AbstractAdminClientCommand implements Callable<Integer> {
 
