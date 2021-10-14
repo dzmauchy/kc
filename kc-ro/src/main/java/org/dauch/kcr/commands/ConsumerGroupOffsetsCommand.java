@@ -147,7 +147,7 @@ public class ConsumerGroupOffsetsCommand extends AbstractAdminClientCommand impl
             final long eo = endOffsets.getOrDefault(tp, -1L);
             if (eo >= 0L) {
               var op = consumer.position(tp, timeout);
-              lag = eo - op + groupedBatch.getOrDefault(tp, 0L);
+              lag = Math.max(0L, eo - op + groupedBatch.getOrDefault(tp, 0L));
             } else {
               lag = -1L;
             }
