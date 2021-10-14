@@ -17,6 +17,7 @@ package org.dauch.kcr.commands;
 
 import groovyjarjarpicocli.CommandLine.Option;
 import org.apache.kafka.common.TopicPartition;
+import org.dauch.kcr.converters.KafkaServerConverter;
 
 import java.util.List;
 import java.util.Map;
@@ -27,12 +28,13 @@ import static groovyjarjarpicocli.CommandLine.Help.Visibility.ALWAYS;
 public abstract class AbstractKafkaCommand extends AbstractCommand {
 
   @Option(
-    names = {"--bootstrap-servers"},
+    names = {"--bootstrap-servers", "--bs"},
     paramLabel = "<bootstrap-server>",
     description = "KAFKA bootstrap servers",
     defaultValue = "${env:KAFKA_BOOTSTRAP_SERVERS:-${sys:KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}}",
     showDefaultValue = ALWAYS,
-    split = ","
+    split = ",",
+    converter = KafkaServerConverter.class
   )
   public List<String> bootstrapServers;
 

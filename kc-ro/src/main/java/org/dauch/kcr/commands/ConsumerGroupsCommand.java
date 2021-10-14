@@ -78,7 +78,10 @@ public class ConsumerGroupsCommand extends AbstractAdminClientCommand implements
         .filter(s -> this.groups.isEmpty() || this.groups.stream().anyMatch(s::matches))
         .collect(toConcurrentMap(identity(), e -> true, (v1, v2) -> v2, ConcurrentSkipListMap::new))
         .keySet();
-      var r = client.describeConsumerGroups(groups, describeOpts()).all().get();
+      var r = new TreeMap<>(client.describeConsumerGroups(groups, describeOpts())
+        .all()
+        .get()
+      );
       if (!quiet) {
         var table = new ShellTable();
         table.column("Group").alignLeft();

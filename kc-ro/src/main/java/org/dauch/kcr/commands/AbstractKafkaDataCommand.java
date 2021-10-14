@@ -18,25 +18,24 @@ package org.dauch.kcr.commands;
 import groovyjarjarpicocli.CommandLine.Option;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.dauch.kcr.kafka.KafkaProperties;
 import org.dauch.kcr.converters.PropertiesConverter;
+import org.dauch.kcr.converters.URIConverter;
+import org.dauch.kcr.kafka.KafkaProperties;
 
 import java.net.URI;
 import java.rmi.server.UID;
 import java.util.TreeMap;
-
-import static groovyjarjarpicocli.CommandLine.Help.Visibility.ALWAYS;
 
 public abstract class AbstractKafkaDataCommand extends AbstractKafkaCommand {
 
   protected static final ByteArrayDeserializer BAD = new ByteArrayDeserializer();
 
   @Option(
-    names = {"--schema-registry"},
+    names = {"--schema-registry", "--sr"},
     paramLabel = "<schema-registry-url>",
     description = "Schema registry URL",
     defaultValue = "${env:SCHEMA_REGISTRY:-${sys:SCHEMA_REGISTRY:-http://localhost:2181/}}",
-    showDefaultValue = ALWAYS
+    converter = URIConverter.class
   )
   public URI schemaRegistry;
 
@@ -44,17 +43,9 @@ public abstract class AbstractKafkaDataCommand extends AbstractKafkaCommand {
     names = {"--transactional", "--tx"},
     description = "Transactional enabled",
     defaultValue = "false",
-    showDefaultValue = ALWAYS,
     fallbackValue = "true"
   )
   public boolean transactional;
-
-  @Option(
-    names = {"--group"},
-    description = "Kafka consumer group",
-    defaultValue = ""
-  )
-  public String group;
 
   @Option(
     names = {"--client-properties"},
@@ -73,11 +64,6 @@ public abstract class AbstractKafkaDataCommand extends AbstractKafkaCommand {
     }
     props.putIfAbsent(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "4096");
     props.putIfAbsent(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
-    if (group.isBlank()) {
-      props.putIfAbsent(ConsumerConfig.GROUP_ID_CONFIG, new UID().toString());
-    } else {
-      props.putIfAbsent(ConsumerConfig.GROUP_ID_CONFIG, group);
-    }
     return props;
   }
 }

@@ -63,7 +63,7 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
       var opts = new ListTopicsOptions()
         .listInternal(internal);
       var topics = client.listTopics(opts).names().get().parallelStream()
-        .filter(s -> this.topics.parallelStream().anyMatch(s::matches))
+        .filter(s -> this.topics.isEmpty() || this.topics.parallelStream().anyMatch(s::matches))
         .collect(toConcurrentMap(identity(), s -> true, (t1, t2) -> t2, ConcurrentSkipListMap::new));
       var descriptions = client.describeTopics(topics.keySet()).all().get();
       if (!quiet) {
