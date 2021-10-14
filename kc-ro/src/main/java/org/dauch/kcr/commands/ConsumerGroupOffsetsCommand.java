@@ -32,12 +32,12 @@ import org.dauch.kcr.converters.TopicPartitionConverter;
 
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
 
 import static groovyjarjarpicocli.CommandLine.Help.Visibility.ALWAYS;
 import static java.util.Collections.emptyList;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toConcurrentMap;
 
 @Command(
@@ -96,12 +96,14 @@ public class ConsumerGroupOffsetsCommand extends AbstractAdminClientCommand impl
         table.column("Offset").alignRight();
         table.column("Earliest").alignRight();
         table.column("Latest").alignRight();
+        table.column("Lag").alignRight();
         result.forEach((tp, om) -> table.addRow().addContent(
           tp.topic(),
           tp.partition(),
-          Optional.ofNullable(om).map(OffsetAndMetadata::offset).orElse(-1L),
-          Optional.ofNullable(earliest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L),
-          Optional.ofNullable(latest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L)
+          ofNullable(om).map(OffsetAndMetadata::offset).orElse(-1L),
+          ofNullable(earliest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L),
+          ofNullable(latest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L),
+          ofNullable(latest.get(tp)).flatMap(l -> ofNullable(om).map(o -> l.offset() - o.offset())).orElse(-1L)
         ));
         table.print(err);
       }
@@ -110,15 +112,14 @@ public class ConsumerGroupOffsetsCommand extends AbstractAdminClientCommand impl
         var m = map
           .computeIfAbsent(tp.topic(), t -> new TreeMap<>())
           .computeIfAbsent(tp.partition(), p -> new TreeMap<>());
-        m.put("offset", Optional.ofNullable(om).map(OffsetAndMetadata::offset).orElse(-1L));
-        m.put("earliest", Optional.ofNullable(earliest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L));
-        m.put("latest", Optional.ofNullable(latest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L));
-        Optional
-          .ofNullable(om)
+        m.put("offset", ofNullable(om).map(OffsetAndMetadata::offset).orElse(-1L));
+        m.put("earliest", ofNullable(earliest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L));
+        m.put("latest", ofNullable(latest.get(tp)).map(ListOffsetsResultInfo::offset).orElse(-1L));
+        m.put("lag", ofNullable(latest.get(tp)).flatMap(l -> ofNullable(om).map(o -> l.offset() - o.offset())).orElse(-1L));
+        ofNullable(om)
           .flatMap(OffsetAndMetadata::leaderEpoch)
           .ifPresent(le -> m.put("leaderEpoch", le));
-        Optional
-          .ofNullable(om)
+        ofNullable(om)
           .ifPresent(d -> m.put("metadata", d.metadata()));
       });
       out.println(finalOutput(JsonOutput.toJson(map)));
