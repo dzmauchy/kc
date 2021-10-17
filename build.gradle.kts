@@ -85,14 +85,13 @@ subprojects {
   when (name) {
     "kc-core" -> {
       dependencies {
-        "api"(group = "org.apache.kafka", name = "kafka-clients", version = kafkaVersion)
-        "api"(group = "org.apache.avro", name = "avro", version = "1.10.2")
-        "api"(group = "org.slf4j", name = "slf4j-jdk14", version = slf4jVersion)
       }
     }
     "kc-test" -> {
       dependencies {
         "api"(platform("org.junit:junit-bom:5.7.2"))
+        "api"(group = "org.apache.kafka", name = "kafka-clients", version = kafkaVersion)
+        "api"(group = "org.apache.avro", name = "avro", version = avroVersion)
         "api"(group = "org.junit.jupiter", name = "junit-jupiter-engine")
         "api"(group = "org.junit.jupiter", name = "junit-jupiter-params")
         "api"(group = "org.apache.kafka", name = "kafka_2.13", version = kafkaVersion)
@@ -111,6 +110,9 @@ subprojects {
     "kc-ro" -> {
       dependencies {
         "api"(project(":kc-core"))
+        "api"(group = "org.apache.kafka", name = "kafka-clients", version = kafkaVersion)
+        "api"(group = "org.apache.avro", name = "avro", version = avroVersion)
+        "api"(group = "org.slf4j", name = "slf4j-jdk14", version = slf4jVersion)
         "api"(group = "org.codehaus.groovy", name = "groovy", version = groovyVersion, classifier = "indy")
         "api"(group = "org.codehaus.groovy", name = "groovy-json", version = groovyVersion, classifier = "indy") {
           exclude(group = "org.codehaus.groovy", module = "groovy")
