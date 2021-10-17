@@ -38,13 +38,18 @@ public final class PlainKafkaClient implements KafkaClient {
   }
 
   @Override
-  public Stream<String> listTopics(long timeoutMillis) {
+  public Stream<String> listTopics() {
     return null;
   }
 
   @Override
   public String getClientId() {
     return clientId;
+  }
+
+  @Override
+  public long getDataSize() {
+    return bufferPool.actualSize();
   }
 
   @Override

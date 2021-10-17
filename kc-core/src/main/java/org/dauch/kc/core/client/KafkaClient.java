@@ -20,7 +20,24 @@ import java.util.stream.Stream;
 
 public interface KafkaClient extends Closeable {
 
+  /**
+   * Returns client id.
+   *
+   * @return Client id.
+   */
   String getClientId();
 
-  Stream<String> listTopics(long timeoutMillis);
+  /**
+   * Get current data size (both keys & values) used by the buffer pool.
+   *
+   * @return Data size in use (in bytes).
+   */
+  long getDataSize();
+
+  /**
+   * Returns topics list.
+   *
+   * @return Topics list.
+   */
+  Stream<String> listTopics();
 }
