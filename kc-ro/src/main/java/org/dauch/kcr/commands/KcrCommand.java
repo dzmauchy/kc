@@ -36,7 +36,8 @@ import java.util.concurrent.Callable;
     SchemaCommand.class,
     ConsumerGroupsCommand.class,
     ConsumerGroupOffsetsCommand.class,
-    CheckCommand.class
+    CheckCommand.class,
+    EvalCommand.class
   }
 )
 public class KcrCommand implements Callable<Integer> {

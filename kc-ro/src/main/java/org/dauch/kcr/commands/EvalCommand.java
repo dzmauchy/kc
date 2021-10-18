@@ -20,7 +20,6 @@ import groovy.json.JsonParserType;
 import groovy.json.JsonSlurper;
 import groovyjarjarpicocli.CommandLine.Command;
 
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -28,24 +27,13 @@ import java.util.stream.Collectors;
 import static org.dauch.kcr.util.ExceptionUtils.exceptionToMap;
 
 @Command(
-  name = "check",
-  aliases = {"q"},
-  description = "Check json input",
+  name = "eval",
+  aliases = {"e"},
+  description = "Evaluate",
   mixinStandardHelpOptions = true,
   showDefaultValues = true
 )
-public class CheckCommand extends AbstractEvalCommand implements Callable<Integer> {
-
-  @Override
-  protected Object transform(Object value) {
-    if (value == null) {
-      return true;
-    } else if (value instanceof Boolean) {
-      return value;
-    } else {
-      return "Invalid result: " + value;
-    }
-  }
+public class EvalCommand extends AbstractEvalCommand implements Callable<Integer> {
 
   @Override
   public Integer call() throws Exception {
@@ -58,23 +46,28 @@ public class CheckCommand extends AbstractEvalCommand implements Callable<Intege
         try {
           return f.get();
         } catch (ExecutionException e) {
-          return e.getCause() instanceof AssertionError
-            ? e.getCause().getMessage()
-            : exceptionToMap(e.getCause());
+          return exceptionToMap(e.getCause());
         } catch (Throwable e) {
           return exceptionToMap(e);
         }
       })
       .collect(Collectors.toList());
-    out.println(JsonOutput.prettyPrint(JsonOutput.toJson(result)));
-    if (result.parallelStream().allMatch(b -> b instanceof Boolean && (boolean) b)) {
-      return 0;
-    } else if (result.parallelStream().anyMatch(e -> e instanceof Map)) {
-      return 2;
-    } else if (result.parallelStream().anyMatch(e -> e instanceof String)) {
-      return 3;
-    } else {
-      return 1;
+    switch (result.size()) {
+      case 0:
+        out.println("");
+        break;
+      case 1:
+        out.println(JsonOutput.prettyPrint(JsonOutput.toJson(result.get(0))));
+        break;
+      default:
+        out.println(JsonOutput.prettyPrint(JsonOutput.toJson(result)));
+        break;
     }
+    return 0;
+  }
+
+  @Override
+  protected Object transform(Object value) {
+    return value;
   }
 }
