@@ -34,7 +34,7 @@ public final class PlainKafkaClient implements KafkaClient {
       throw new IllegalArgumentException("clientId is blank");
     }
     this.socketPool = new SocketPool(requireNonNull(properties, "properties is null"));
-    this.bufferPool = new BufferPool(clientId, properties);
+    this.bufferPool = new BufferPool(properties);
   }
 
   @Override

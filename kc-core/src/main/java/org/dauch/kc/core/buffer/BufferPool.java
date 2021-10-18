@@ -29,30 +29,25 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.EnumSet;
 import java.util.IdentityHashMap;
-import java.util.LinkedList;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.lang.Character.MAX_RADIX;
 import static java.lang.Integer.toUnsignedString;
 import static java.lang.System.Logger.Level.ERROR;
 import static java.lang.System.currentTimeMillis;
-import static java.lang.Thread.currentThread;
 import static java.nio.channels.FileChannel.MapMode.PRIVATE;
 import static java.nio.file.StandardOpenOption.*;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.locks.LockSupport.parkNanos;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 public final class BufferPool implements AutoCloseable {
 
   private static final System.Logger LOGGER = System.getLogger(BufferPool.class.getName());
   private static final ThreadGroup THREAD_GROUP = new ThreadGroup("bufferPools");
-  private static final EnumSet<StandardOpenOption> CUSTOM_OPEN_OPTS = EnumSet.of(CREATE_NEW, WRITE, SPARSE);
+  private static final EnumSet<StandardOpenOption> OPEN_OPTS = EnumSet.of(CREATE_NEW, WRITE, SPARSE);
   private static final IdentityHashMap<ByteBuffer, Path> FILES = new IdentityHashMap<>(1024);
 
   static {
@@ -69,30 +64,55 @@ public final class BufferPool implements AutoCloseable {
     }));
   }
 
+  private static final ThreadPoolExecutor POOL;
+
+  static {
+    var threadCount = Integer.parseInt(System.getProperty("kc.pool.threads", "4"));
+    var counter = new AtomicInteger();
+    var threadFactory = (ThreadFactory) r -> {
+      var threadNum = counter.getAndIncrement();
+      var thread = new Thread(THREAD_GROUP, r, "buffer-pool-worker-" + threadNum, 128L << 10);
+      thread.setDaemon(true);
+      thread.setPriority(Thread.MIN_PRIORITY);
+      return thread;
+    };
+    var queue = new SynchronousQueue<Runnable>();
+    var handler = new ThreadPoolExecutor.CallerRunsPolicy();
+    POOL = new ThreadPoolExecutor(threadCount, threadCount, 10L, MINUTES, queue, threadFactory, handler);
+    POOL.allowCoreThreadTimeOut(true);
+  }
+
   private final BufferConfig bufferConfig;
   private final long maxSize;
   private final ReferenceQueue<DataBuffer> refQueue = new ReferenceQueue<>();
   private final ConcurrentSkipListMap<Integer, ConcurrentLinkedQueue<DataBuffer>> bufs = new ConcurrentSkipListMap<>();
   private final ConcurrentHashMap<Reference<? extends DataBuffer>, ByteBuffer> refs = new ConcurrentHashMap<>(64, 0.5f);
   private final AtomicLong actualSize = new AtomicLong();
-  private final AtomicBoolean started = new AtomicBoolean();
-  private final Thread thread;
+  private final boolean needRecharge;
 
-  public BufferPool(String clientId, KafkaClientProperties props) {
+  public BufferPool(KafkaClientProperties props) {
     this.bufferConfig = BufferConfig.fromString(requireNonNull(props, "props is null").getBufferConfig());
-    this.maxSize = maxSize(bufferConfig);
-    this.thread = new Thread(THREAD_GROUP, this::clean, clientId + "_cleaner", 128L << 10);
-    this.thread.setDaemon(true);
-    this.thread.setPriority(Thread.MIN_PRIORITY);
+    switch (bufferConfig.type()) {
+      case MMAP:
+        needRecharge = true;
+        maxSize = ((MappedBufferConfig) bufferConfig).maxSize;
+        break;
+      case DIRECT:
+        needRecharge = true;
+        maxSize = ((DirectBufferConfig) bufferConfig).maxSize;
+        break;
+      default:
+        needRecharge = false;
+        maxSize = Long.MAX_VALUE;
+        break;
+    }
   }
 
   public DataBuffer get(int size, InputStream is) throws IOException {
-    if (size <= 0) {
+    if (size < 0) {
       throw new IllegalArgumentException("Invalid size: " + size);
     }
-    if (started.compareAndSet(false, true)) {
-      thread.start();
-    }
+    recharge();
     if (bufferConfig.type() == BufferType.HEAP) {
       return getHeapBuffer(size, is);
     }
@@ -121,15 +141,6 @@ public final class BufferPool implements AutoCloseable {
     return buf;
   }
 
-  private static long maxSize(BufferConfig bufferConfig) {
-    switch (bufferConfig.type()) {
-      case HEAP: return Long.MAX_VALUE;
-      case MMAP: return ((MappedBufferConfig) bufferConfig).maxSize;
-      case DIRECT: return ((DirectBufferConfig) bufferConfig).maxSize;
-      default: throw new IllegalStateException("Unsupported type: " + bufferConfig.type());
-    }
-  }
-
   private DataBuffer getHeapBuffer(int size, InputStream is) throws IOException {
     var rawBuf = ByteBuffer.wrap(is.readNBytes(size));
     var buf = new DataBuffer(rawBuf);
@@ -145,11 +156,11 @@ public final class BufferPool implements AutoCloseable {
       switch (config.type()) {
         case HEAP: return getHeapBuffer(size, is);
         case DIRECT: {
-          var conf = (DirectBufferConfig) config;
           var totalSize = actualSize.addAndGet(size);
-          if (totalSize > conf.maxSize) {
+          if (totalSize > maxSize) {
             actualSize.addAndGet(-size);
-            return get0(size, is, new HeapBufferConfig());
+            free();
+            return getHeapBuffer(size, is);
           }
           var rawBuf = ByteBuffer.allocateDirect(size);
           transferNBytes(size, is, rawBuf);
@@ -158,15 +169,16 @@ public final class BufferPool implements AutoCloseable {
         case MMAP: {
           var conf = (MappedBufferConfig) config;
           var totalSize = actualSize.addAndGet(size);
-          if (totalSize > conf.maxSize) {
+          if (totalSize > maxSize) {
             actualSize.addAndGet(-size);
-            return get0(size, is, new HeapBufferConfig());
+            free();
+            return getHeapBuffer(size, is);
           }
           var random = toUnsignedString(ThreadLocalRandom.current().nextInt(), MAX_RADIX);
           var time = Long.toString(currentTimeMillis(), MAX_RADIX);
           var nanoTime = toUnsignedString((int) Math.abs(System.nanoTime() % 1_000_000), MAX_RADIX);
           var file = conf.directory.resolve("kc-" + random + "-" + time + "-" + nanoTime + ".kctmp");
-          try (var ch = FileChannel.open(file, CUSTOM_OPEN_OPTS)) {
+          try (var ch = FileChannel.open(file, OPEN_OPTS)) {
             var rawBuf = ch.map(PRIVATE, 0L, size);
             transferNBytes(size, is, rawBuf);
             var buf = obtainDataBuffer(rawBuf);
@@ -190,7 +202,7 @@ public final class BufferPool implements AutoCloseable {
       }
       var rawBuf = buf.buffer;
       transferNBytes(size, is, rawBuf);
-      if (config instanceof MappedBufferConfig) {
+      if (config.type() == BufferType.MMAP) {
         for (int i = rawBuf.limit(); i < rawBuf.capacity(); i++) {
           rawBuf.put(i, (byte) 0);
         }
@@ -200,34 +212,55 @@ public final class BufferPool implements AutoCloseable {
   }
 
   private boolean clean(ByteBuffer buf) {
-    actualSize.addAndGet(-buf.capacity());
+    if (!buf.isDirect()) {
+      actualSize.addAndGet(-buf.capacity());
+      return true;
+    }
     final Path file;
     synchronized (FILES) {
       file = FILES.remove(buf);
     }
     if (file != null) {
-      try {
-        Files.deleteIfExists(file);
-      } catch (Throwable x) {
-        LOGGER.log(ERROR, () -> "Unable to clean buffer", x);
-      }
+      POOL.execute(() -> {
+        try {
+          Files.deleteIfExists(file);
+        } catch (Throwable x) {
+          LOGGER.log(ERROR, () -> "Unable to clean buffer", x);
+        } finally {
+          actualSize.addAndGet(-buf.capacity());
+        }
+      });
+    } else {
+      actualSize.addAndGet(-buf.capacity());
     }
     return true;
   }
 
-  private boolean clean0(float cleanFactor) {
-    var result = false;
-    var direct = bufferConfig.type() != BufferType.HEAP;
-    var refList = new LinkedList<Reference<? extends DataBuffer>>();
-    for (var ref = refQueue.poll(); ref != null; ref = refQueue.poll()) {
-      refList.add(ref);
+  private void free() {
+    while (actualSize.floatValue() > maxSize * 0.75f) {
+      var fe = bufs.firstEntry();
+      var le = bufs.lastEntry();
+      if (fe == null || le == null) {
+        var e = bufs.pollLastEntry();
+        if (e != null) {
+          e.getValue().removeIf(b -> clean(b.buffer));
+        }
+      } else {
+        var k = ThreadLocalRandom.current().nextInt(fe.getKey(), le.getKey() + 1);
+        var e = bufs.tailMap(k, true).pollFirstEntry();
+        if (e != null) {
+          e.getValue().removeIf(b -> clean(b.buffer));
+        }
+      }
     }
-    for (var ref : refList) {
+  }
+
+  private void recharge() {
+    for (var ref = refQueue.poll(); ref != null; ref = refQueue.poll()) {
       var rawBuf = refs.remove(ref);
-      if (rawBuf != null && direct) {
+      if (rawBuf != null && needRecharge && rawBuf.isDirect()) {
         var buf = new DataBuffer(rawBuf);
-        var newRef = new PhantomReference<>(buf, refQueue);
-        refs.put(newRef, rawBuf);
+        refs.put(new PhantomReference<>(buf, refQueue), rawBuf);
         bufs.compute(rawBuf.capacity(), (k, o) -> {
           if (o == null) {
             return new ConcurrentLinkedQueue<>(singletonList(buf));
@@ -236,39 +269,6 @@ public final class BufferPool implements AutoCloseable {
             return o;
           }
         });
-      }
-    }
-    if (direct) {
-      while (actualSize.floatValue() > cleanFactor * maxSize) {
-        result = true;
-        var fe = bufs.firstEntry();
-        var le = bufs.lastEntry();
-        if (fe == null || le == null) {
-          var e = bufs.pollLastEntry();
-          if (e != null) {
-            var buffers = e.getValue();
-            buffers.removeIf(b -> clean(b.buffer));
-          }
-        } else {
-          var rnd = ThreadLocalRandom.current().nextInt(fe.getKey(), le.getKey() + 1);
-          var e = bufs.tailMap(rnd, true).pollFirstEntry();
-          if (e == null) {
-            e = bufs.pollLastEntry();
-          }
-          if (e != null) {
-            var buffers = e.getValue();
-            buffers.removeIf(b -> clean(b.buffer));
-          }
-        }
-      }
-    }
-    return result;
-  }
-
-  private void clean() {
-    while (!currentThread().isInterrupted()) {
-      if (!clean0(0.75f)) {
-        parkNanos(10_000_000L);
       }
     }
   }
@@ -284,10 +284,13 @@ public final class BufferPool implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {
-    thread.interrupt();
-    thread.join();
+  public void close() {
     System.gc();
-    clean0(0.0f);
+    for (var ref = refQueue.poll(); ref != null; ref = refQueue.poll()) {
+      var rawBuf = refs.remove(ref);
+      if (rawBuf != null) {
+        clean(rawBuf);
+      }
+    }
   }
 }
