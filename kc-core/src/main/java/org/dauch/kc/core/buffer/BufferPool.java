@@ -17,6 +17,7 @@ package org.dauch.kc.core.buffer;
 
 import org.dauch.kc.core.client.KafkaClientProperties;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.PhantomReference;
@@ -126,7 +127,7 @@ public final class BufferPool implements AutoCloseable {
     while (len > 0) {
       var n = is.read(data, 0, Math.min(len, data.length));
       if (n < 0) {
-        break;
+        throw new EOFException();
       }
       len -= n;
       buf.put(data, 0, n);
