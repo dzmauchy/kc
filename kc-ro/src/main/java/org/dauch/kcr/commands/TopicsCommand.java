@@ -20,20 +20,20 @@ import groovyjarjarpicocli.CommandLine.Command;
 import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.DescribeTopicsOptions;
 import org.apache.kafka.clients.admin.ListTopicsOptions;
+import org.apache.kafka.common.Node;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.karaf.shell.table.ShellTable;
 
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
 import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toConcurrentMap;
+import static java.util.stream.Collectors.*;
 
 @Command(
   name = "topics",
@@ -57,15 +57,40 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
   )
   public boolean internal;
 
+  @Option(
+    names = {"--opts"},
+    description = "Include authorized operations",
+    fallbackValue = "true",
+    defaultValue = "false"
+  )
+  public boolean ops;
+
+  private LinkedHashMap<String, Object> node(Node node) {
+    var map = new LinkedHashMap<String, Object>(4);
+    map.put("name", node.idString());
+    map.put("id", node.id());
+    map.put("host", node.host());
+    map.put("port", node.port());
+    if (node.hasRack()) {
+      map.put("rack", node.rack());
+    }
+    map.put("empty", node.isEmpty());
+    return map;
+  }
+
   @Override
   public Integer call() throws Exception {
     try (var client = AdminClient.create(clientProps())) {
       var opts = new ListTopicsOptions()
-        .listInternal(internal);
+        .listInternal(internal)
+        .timeoutMs((int) timeout.toMillis());
+      var dOpts = new DescribeTopicsOptions()
+        .timeoutMs((int) timeout.toMillis())
+        .includeAuthorizedOperations(ops);
       var topics = client.listTopics(opts).names().get().parallelStream()
         .filter(s -> this.topics.isEmpty() || this.topics.parallelStream().anyMatch(s::matches))
         .collect(toConcurrentMap(identity(), s -> true, (t1, t2) -> t2, ConcurrentSkipListMap::new));
-      var descriptions = client.describeTopics(topics.keySet()).all().get();
+      var descriptions = client.describeTopics(topics.keySet(), dOpts).all().get();
       if (verbose) {
         var table = new ShellTable();
         table.column("Topic").alignLeft();
@@ -95,23 +120,33 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
       for (var topic : topics.keySet()) {
         var description = descriptions.get(topic);
         if (description != null) {
-          var ops = Stream.ofNullable(description.authorizedOperations())
-            .flatMap(Set::stream)
-            .map(o -> {
-              var m = new LinkedHashMap<String, Object>();
-              m.put("code", Byte.toUnsignedInt(o.code()));
-              m.put("name", o.name());
-              return m;
+          var map = new LinkedHashMap<String, Object>(4);
+          map.put("topic", description.name());
+          map.put("partitions", description.partitions().stream()
+            .map(p -> {
+              var partitionMap = new LinkedHashMap<String, Object>();
+              partitionMap.put("id", p.partition());
+              if (p.leader() != null) {
+                partitionMap.put("leader", node(p.leader()));
+              }
+              partitionMap.put("replicas", p.replicas().stream().map(this::node).collect(toList()));
+              partitionMap.put("isr", p.isr().stream().map(this::node).collect(toList()));
+              return partitionMap;
             })
-            .collect(Collectors.toList());
-          list.add(
-            Map.of(
-              "topic", description.name(),
-              "partitions", description.partitions().size(),
-              "replicas", description.partitions().stream().mapToInt(r -> r.replicas().size()).max().orElse(0),
-              "operations", ops
-            )
+            .collect(toList())
           );
+          if (description.authorizedOperations() != null) {
+            map.put("operations", description.authorizedOperations().stream()
+              .map(o -> {
+                var m = new LinkedHashMap<String, Object>();
+                m.put("code", Byte.toUnsignedInt(o.code()));
+                m.put("name", o.name());
+                return m;
+              })
+              .collect(toList())
+            );
+          }
+          list.add(map);
         }
       }
       out.println(finalOutput(JsonOutput.toJson(list)));
