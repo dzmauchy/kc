@@ -78,9 +78,7 @@ public class DeleteTopicsCommand extends AbstractAdminClientCommand implements C
           map.put(t, true);
         } catch (Exception e) {
           map.put(t, ExceptionUtils.exceptionToMap(e));
-          if (!quiet) {
-            e.printStackTrace(err);
-          }
+          report(e);
         }
       });
       out.println(finalOutput(JsonOutput.toJson(map)));

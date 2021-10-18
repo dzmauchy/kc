@@ -82,7 +82,7 @@ public class ConsumerGroupsCommand extends AbstractAdminClientCommand implements
         .all()
         .get()
       );
-      if (!quiet) {
+      if (verbose) {
         var table = new ShellTable();
         table.column("Group").alignLeft();
         table.column("State").alignCenter();

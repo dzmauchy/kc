@@ -45,24 +45,24 @@ public abstract class AbstractCommand {
     .toFormatter();
 
   @Option(
-    names = {"--quiet"},
+    names = {"--verbose", "-V"},
     description = "Quiet mode",
     fallbackValue = "true",
     defaultValue = "false"
   )
-  public boolean quiet;
+  public boolean verbose;
 
   public PrintStream out = System.out;
   public PrintStream err = System.err;
 
   protected void verbose(String format, Object... args) {
-    if (!quiet) {
+    if (verbose) {
       err.format(format, args);
     }
   }
 
   protected void report(Throwable throwable) {
-    if (!quiet) {
+    if (verbose) {
       throwable.printStackTrace(err);
     }
   }

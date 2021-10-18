@@ -66,7 +66,7 @@ public class CheckCommand extends AbstractEvalCommand implements Callable<Intege
         }
       })
       .collect(Collectors.toList());
-    out.println(JsonOutput.prettyPrint(JsonOutput.toJson(result)));
+    out.println(finalOutput(JsonOutput.toJson(result)));
     if (result.parallelStream().allMatch(b -> b instanceof Boolean && (boolean) b)) {
       return 0;
     } else if (result.parallelStream().anyMatch(e -> e instanceof Map)) {

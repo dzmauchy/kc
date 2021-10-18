@@ -87,7 +87,7 @@ public class OffsetsCommand extends AbstractAdminClientCommand implements Callab
           iMap.put("endOffset", endOff);
           iMap.put("startTime", Instant.ofEpochMilli(startTimestamp.timestamp()).toString());
         }
-        if (!quiet) {
+        if (verbose) {
           err.println(topic);
           var table = new ShellTable();
           table.column("Partition").alignLeft();

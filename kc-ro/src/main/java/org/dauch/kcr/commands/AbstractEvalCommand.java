@@ -15,7 +15,9 @@
  */
 package org.dauch.kcr.commands;
 
+import groovy.json.JsonOutput;
 import groovy.lang.GroovyShell;
+import groovyjarjarpicocli.CommandLine.Option;
 import groovyjarjarpicocli.CommandLine.Parameters;
 import org.dauch.kcr.groovy.GroovyShellProvider;
 
@@ -35,12 +37,24 @@ public abstract class AbstractEvalCommand extends AbstractCommand {
 
   protected final GroovyShell shell = GroovyShellProvider.defaultShell();
 
+  @Option(
+    names = {"-p", "--pretty"},
+    description = "Pretty print",
+    fallbackValue = "true",
+    defaultValue = "false"
+  )
+  public boolean pretty;
+
   @Parameters(
     description = "Check scripts"
   )
   public List<String> scripts = emptyList();
 
   protected abstract Object transform(Object value);
+
+  protected String finalOutput(String outputText) {
+    return pretty ? JsonOutput.prettyPrint(outputText) : outputText;
+  }
 
   protected List<CompletableFuture<Object>> result() {
     return IntStream.range(0, scripts.size()).parallel()

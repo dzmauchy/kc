@@ -146,7 +146,7 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
           }
         }
       });
-      if (!quiet) {
+      if (verbose) {
         err.printf("Count: %d%n", counter.sum());
       }
     }

@@ -154,7 +154,7 @@ public class ConsumerGroupOffsetsCommand extends AbstractAdminClientCommand impl
           }
           lags.put(tp, lag);
         });
-        if (!quiet) {
+        if (verbose) {
           var table = new ShellTable();
           table.column("Topic").alignLeft();
           table.column("Partition").alignRight();

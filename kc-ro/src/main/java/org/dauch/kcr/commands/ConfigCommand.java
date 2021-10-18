@@ -97,9 +97,7 @@ public class ConfigCommand extends AbstractAdminClientCommand implements Callabl
           map.put(name, m);
         } catch (Throwable e) {
           map.put(name, ExceptionUtils.exceptionToMap(e));
-          if (!quiet) {
-            e.printStackTrace(err);
-          }
+          report(e);
         }
       });
       out.println(finalOutput(JsonOutput.toJson(map)));

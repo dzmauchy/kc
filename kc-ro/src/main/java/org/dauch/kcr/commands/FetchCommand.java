@@ -76,7 +76,7 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
         long eo = endOffs.getOrDefault(tp, 0L);
         return eo <= beginOffs.getOrDefault(tp, 0L) || o.offset() >= endOffs.getOrDefault(tp, 0L);
       });
-      if (!quiet) {
+      if (verbose) {
         printSubscription(offs, endOffs);
       }
       long fromMillis = from.toEpochMilli();
@@ -121,7 +121,7 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
           }));
         }
       });
-      if (!quiet) {
+      if (verbose) {
         err.printf("Count: %d%n", counter.sum());
       }
     }

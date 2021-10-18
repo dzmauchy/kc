@@ -54,13 +54,15 @@ public class EvalCommand extends AbstractEvalCommand implements Callable<Integer
       .collect(Collectors.toList());
     switch (result.size()) {
       case 0:
-        out.println("");
+        if (verbose) {
+          err.println("No scripts");
+        }
         break;
       case 1:
-        out.println(JsonOutput.prettyPrint(JsonOutput.toJson(result.get(0))));
+        out.println(finalOutput(JsonOutput.toJson(result.get(0))));
         break;
       default:
-        out.println(JsonOutput.prettyPrint(JsonOutput.toJson(result)));
+        out.println(finalOutput(JsonOutput.toJson(result)));
         break;
     }
     return 0;
