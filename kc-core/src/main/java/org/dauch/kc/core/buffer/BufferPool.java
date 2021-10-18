@@ -121,10 +121,10 @@ public final class BufferPool implements AutoCloseable {
 
   static void transferNBytes(int size, InputStream is, ByteBuffer buf) throws IOException {
     buf.clear();
-    var data = new byte[1024];
+    var data = new byte[Math.min(size, 512)];
     var len = size;
     while (len > 0) {
-      var n = is.read(data, 0, Math.min(len, 512));
+      var n = is.read(data, 0, Math.min(len, data.length));
       if (n < 0) {
         break;
       }
