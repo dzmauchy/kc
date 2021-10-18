@@ -45,8 +45,8 @@ public abstract class AbstractCommand {
     .toFormatter();
 
   @Option(
-    names = {"--verbose", "-V"},
-    description = "Quiet mode",
+    names = {"--verbose", "--vb"},
+    description = "Verbose mode",
     fallbackValue = "true",
     defaultValue = "false"
   )
