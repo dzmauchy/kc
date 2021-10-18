@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.dauch"
-version = "0.4.8"
+version = "0.4.9"
 
 val javaVersion = JavaVersion.VERSION_11
 
