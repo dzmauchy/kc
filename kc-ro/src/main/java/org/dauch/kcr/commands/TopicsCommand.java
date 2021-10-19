@@ -26,7 +26,10 @@ import org.apache.kafka.common.Node;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.karaf.shell.table.ShellTable;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Stream;
@@ -58,7 +61,7 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
   public boolean internal;
 
   @Option(
-    names = {"--opts"},
+    names = {"--ops"},
     description = "Include authorized operations",
     fallbackValue = "true",
     defaultValue = "false"
@@ -74,7 +77,9 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
     if (node.hasRack()) {
       map.put("rack", node.rack());
     }
-    map.put("empty", node.isEmpty());
+    if (node.isEmpty()) {
+      map.put("empty", true);
+    }
     return map;
   }
 
@@ -116,15 +121,19 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
         }
         table.print(err);
       }
-      var list = new ArrayList<Map<String, Object>>();
-      for (var topic : topics.keySet()) {
-        var description = descriptions.get(topic);
-        if (description != null) {
+      var list = topics.keySet().parallelStream()
+        .map(descriptions::get)
+        .filter(Objects::nonNull)
+        .map(description -> {
           var map = new LinkedHashMap<String, Object>(4);
           map.put("topic", description.name());
+          if (description.isInternal()) {
+            map.put("internal", true);
+          }
+          map.put("uuid", description.topicId().toString());
           map.put("partitions", description.partitions().stream()
             .map(p -> {
-              var partitionMap = new LinkedHashMap<String, Object>();
+              var partitionMap = new LinkedHashMap<String, Object>(4);
               partitionMap.put("id", p.partition());
               if (p.leader() != null) {
                 partitionMap.put("leader", node(p.leader()));
@@ -135,7 +144,7 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
             })
             .collect(toList())
           );
-          if (description.authorizedOperations() != null) {
+          if (description.authorizedOperations() != null && !description.authorizedOperations().isEmpty()) {
             map.put("operations", description.authorizedOperations().stream()
               .map(o -> {
                 var m = new LinkedHashMap<String, Object>();
@@ -146,9 +155,9 @@ public class TopicsCommand extends AbstractAdminClientCommand implements Callabl
               .collect(toList())
             );
           }
-          list.add(map);
-        }
-      }
+          return map;
+        })
+        .collect(toList());
       out.println(finalOutput(JsonOutput.toJson(list)));
     }
     return 0;
