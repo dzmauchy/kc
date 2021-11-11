@@ -95,6 +95,14 @@ public abstract class AbstractFetchCommand extends AbstractKafkaDataCommand {
   )
   public long messageCount;
 
+  @Option(
+    names = {"-w", "--wait"},
+    description = "Wait for new data infinitely",
+    defaultValue = "false",
+    fallbackValue = "true"
+  )
+  public boolean wait;
+
   protected void printSubscription(Map<TopicPartition, OffsetAndTimestamp> offs, Map<TopicPartition, Long> endOffs) {
     var table = new ShellTable();
     table.column("Topic").alignLeft();

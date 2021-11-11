@@ -109,7 +109,7 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
             var lr = rawRecords.get(rawRecords.size() - 1);
             if (lr.offset() >= endOff || lr.timestamp() >= toMillis) {
               offs.remove(tp);
-            } else {
+            } else if (!wait) {
               final long pos;
               synchronized (consumer) {
                 pos = consumer.position(tp);

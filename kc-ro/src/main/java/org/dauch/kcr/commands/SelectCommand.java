@@ -138,9 +138,11 @@ public class SelectCommand extends AbstractFetchCommand implements Callable<Inte
                 counter.increment();
               }
 
-              var pos = consumer.position(tp);
-              if (pos >= eOff) {
-                break;
+              if (!wait) {
+                var pos = consumer.position(tp);
+                if (pos >= eOff) {
+                  break;
+                }
               }
             }
           }
