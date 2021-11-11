@@ -92,37 +92,40 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
           synchronized (consumer) {
             pollResult = consumer.poll(pollTimeout);
           }
-          ctx.addTask(() -> pollResult.partitions().parallelStream().forEach(tp -> {
-            var rawRecords = pollResult.records(tp);
-            rawRecords.parallelStream()
-              .filter(r -> r.timestamp() >= fromMillis && r.timestamp() < toMillis)
-              .map(r -> new Object[]{
-                r,
-                keyFormat.decode(r.key(), state.keyDecoderProps),
-                valueFormat.decode(r.value(), state.valueDecoderProps)
-              })
-              .filter(state.filter::call)
-              .filter(ctx::filter)
-              .map(state.projection::call)
-              .map(state.outputFormatter::format)
-              .peek(e -> counter.increment())
-              .forEachOrdered(out::println);
-            if (!wait) {
-              long endOff = endOffs.getOrDefault(tp, 1L);
-              var lr = rawRecords.get(rawRecords.size() - 1);
-              if (lr.offset() >= endOff || lr.timestamp() >= toMillis) {
-                offs.remove(tp);
-              } else {
-                final long pos;
-                synchronized (consumer) {
-                  pos = consumer.position(tp);
-                }
-                if (pos >= endOff) {
+          ctx.addTask(() -> {
+            if (pollResult.isEmpty()) {
+              if (!wait) {
+                offs.keySet().removeIf(tp -> {
+                  final long pos;
+                  synchronized (consumer) {
+                    pos = consumer.position(tp);
+                  }
+                  return pos >= endOffs.getOrDefault(tp, 1L);
+                });
+              }
+            } else {
+              pollResult.partitions().parallelStream().forEach(tp -> {
+                var rawRecords = pollResult.records(tp);
+                rawRecords.parallelStream()
+                  .filter(r -> r.timestamp() >= fromMillis && r.timestamp() < toMillis)
+                  .map(r -> new Object[]{
+                    r,
+                    keyFormat.decode(r.key(), state.keyDecoderProps),
+                    valueFormat.decode(r.value(), state.valueDecoderProps)
+                  })
+                  .filter(state.filter::call)
+                  .filter(ctx::filter)
+                  .map(state.projection::call)
+                  .map(state.outputFormatter::format)
+                  .peek(e -> counter.increment())
+                  .forEachOrdered(out::println);
+                var lr = rawRecords.get(rawRecords.size() - 1);
+                if (lr.timestamp() >= toMillis || !wait && lr.offset() >= endOffs.getOrDefault(tp, 1L)) {
                   offs.remove(tp);
                 }
-              }
+              });
             }
-          }));
+          });
         }
       });
       if (verbose) {

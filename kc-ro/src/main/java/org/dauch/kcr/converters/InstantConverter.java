@@ -20,8 +20,10 @@ import groovyjarjarpicocli.CommandLine;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoField;
 
 import static java.time.ZoneOffset.UTC;
@@ -85,9 +87,16 @@ public class InstantConverter implements CommandLine.ITypeConverter<Instant> {
       case "epoch":
       case "start": return Instant.EPOCH;
       default: {
-        if (s.startsWith("-")) {
-          var dur = Duration.parse(s.substring(1));
-          return Instant.now().minus(dur);
+        if (s.startsWith("-") || s.startsWith("+")) {
+          try {
+            var dur = Duration.parse(s.substring(1));
+            return (s.startsWith("-")) ? Instant.now().minus(dur) : Instant.now().plus(dur);
+          } catch (DateTimeParseException e) {
+            var p = Period.parse(s.substring(1));
+            return (s.startsWith("-"))
+              ? LocalDateTime.now(UTC).minus(p).toInstant(UTC)
+              : LocalDateTime.now(UTC).plus(p).toInstant(UTC);
+          }
         } else {
           return LocalDateTime.parse(s, FORMATTER).toInstant(UTC);
         }
