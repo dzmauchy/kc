@@ -70,12 +70,14 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
       var offs = offsetForTimes(consumer);
       var beginOffs = tpMap(consumer.beginningOffsets(offs.keySet()));
       var endOffs = tpMap(consumer.endOffsets(offs.keySet()));
-      offs.entrySet().removeIf(e -> {
-        var tp = e.getKey();
-        var o = e.getValue();
-        long eo = endOffs.getOrDefault(tp, 0L);
-        return eo <= beginOffs.getOrDefault(tp, 0L) || o.offset() >= endOffs.getOrDefault(tp, 0L);
-      });
+      if (!wait) {
+        offs.entrySet().removeIf(e -> {
+          var tp = e.getKey();
+          var o = e.getValue();
+          long eo = endOffs.getOrDefault(tp, 0L);
+          return eo <= beginOffs.getOrDefault(tp, 0L) || o.offset() >= endOffs.getOrDefault(tp, 0L);
+        });
+      }
       if (verbose) {
         printSubscription(offs, endOffs);
       }
@@ -105,17 +107,19 @@ public class FetchCommand extends AbstractFetchCommand implements Callable<Integ
               .map(state.outputFormatter::format)
               .peek(e -> counter.increment())
               .forEachOrdered(out::println);
-            long endOff = endOffs.getOrDefault(tp, 1L);
-            var lr = rawRecords.get(rawRecords.size() - 1);
-            if (lr.offset() >= endOff || lr.timestamp() >= toMillis) {
-              offs.remove(tp);
-            } else if (!wait) {
-              final long pos;
-              synchronized (consumer) {
-                pos = consumer.position(tp);
-              }
-              if (pos >= endOff) {
+            if (!wait) {
+              long endOff = endOffs.getOrDefault(tp, 1L);
+              var lr = rawRecords.get(rawRecords.size() - 1);
+              if (lr.offset() >= endOff || lr.timestamp() >= toMillis) {
                 offs.remove(tp);
+              } else {
+                final long pos;
+                synchronized (consumer) {
+                  pos = consumer.position(tp);
+                }
+                if (pos >= endOff) {
+                  offs.remove(tp);
+                }
               }
             }
           }));
