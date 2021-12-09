@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.dauch"
-version = "0.5.3"
+version = "0.5.4"
 
 val javaVersion = JavaVersion.VERSION_11
 
@@ -89,7 +89,7 @@ subprojects {
     }
     "kc-test" -> {
       dependencies {
-        "api"(platform("org.junit:junit-bom:5.7.2"))
+        "api"(platform("org.junit:junit-bom:5.8.2"))
         "api"(group = "org.apache.kafka", name = "kafka-clients", version = kafkaVersion)
         "api"(group = "org.apache.avro", name = "avro", version = avroVersion)
         "api"(group = "org.junit.jupiter", name = "junit-jupiter-engine")
