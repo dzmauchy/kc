@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.dauch"
-version = "0.5.4"
+version = "0.5.5"
 
 val javaVersion = JavaVersion.VERSION_11
 
@@ -113,8 +113,8 @@ subprojects {
         "api"(group = "org.apache.kafka", name = "kafka-clients", version = kafkaVersion)
         "api"(group = "org.apache.avro", name = "avro", version = avroVersion)
         "api"(group = "org.slf4j", name = "slf4j-jdk14", version = slf4jVersion)
-        "api"(group = "org.codehaus.groovy", name = "groovy", version = groovyVersion, classifier = "indy")
-        "api"(group = "org.codehaus.groovy", name = "groovy-json", version = groovyVersion, classifier = "indy") {
+        "api"(group = "org.apache.groovy", name = "groovy", version = groovyVersion)
+        "api"(group = "org.apache.groovy", name = "groovy-json", version = groovyVersion) {
           exclude(group = "org.codehaus.groovy", module = "groovy")
         }
         "api"(group = "org.apache.karaf.shell", name = "org.apache.karaf.shell.table", version = "4.0.10")
